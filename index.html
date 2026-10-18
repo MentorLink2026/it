@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบรายงานผลการจัดการเรียนรู้พระสอนศีลธรรม</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                        sarabun: ['Sarabun', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            yellow: '#facc15',
+                            dark: '#0f0f11',
+                            panel: '#1a1a1c',
+                            panelHover: '#262629',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(71,85,105,0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(71,85,105,0.8); }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* สำหรับหน้ารายงาน A4 บนหน้าจอ */
+        .report-page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 5mm;
+            box-sizing: border-box;
+            background: white;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            z-index: 10000;
+            transition: bottom 0.4s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+        .toast.show { bottom: 30px; }
+
+        /* Print Settings */
+        @page { size: A4 portrait; margin: 5mm; }
+        @media print {
+            html, body { margin: 0; padding: 0; background: white !important; }
+            .no-print { display: none !important; }
+            .no-print-bg { background: none !important; }
+            
+            #a4ReportModal { display: block !important; position: static !important; background: white !important; padding: 0 !important; margin: 0 !important; min-height: 0 !important; overflow: visible !important; }
+            
+            .report-page {
+                width: 200mm; height: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; transform: none; overflow: visible; border: none !important;
+            }
+
+            #surveyView { display: block !important; background: white !important; padding: 0 !important; margin: 0 !important; }
+            #surveyPrintArea { border: none !important; box-shadow: none !important; }
+            #surveyDashboard, #surveyA4Report { background: white !important; padding: 0 !important; margin: 0 !important; }
+        }
+        
+        .compact-l1 .mb-2, .compact-l1 .mb-1 { margin-bottom: 2px !important; }
+        .compact-l1 .p-2 { padding: 4px !important; }
+        .compact-l1 .gap-3, .compact-l1 .gap-4, .compact-l1 .gap-2 { gap: 4px !important; }
+        .compact-l1 hr { margin-top: 2px !important; margin-bottom: 2px !important; }
+        .compact-l1 .pb-1 { padding-bottom: 2px !important; }
+        .compact-l1 .py-3 { padding-top: 6px !important; padding-bottom: 6px !important; }
+        .compact-l2 .a4-ev-box { height: 26mm !important; }
+        .compact-l2 #a4_profileImg { max-height: 35mm !important; }
+    </style>
+</head>
+<body class="bg-[#020617] text-gray-300 font-sans antialiased min-h-screen flex flex-col relative overflow-x-hidden">
+
+    <div class="fixed inset-0 z-[-1]" style="background: #020617; background-image: linear-gradient(to right, rgba(71,85,105,0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(71,85,105,0.15) 1px, transparent 1px), radial-gradient(circle at 50% 60%, rgba(236,72,153,0.15) 0%, rgba(168,85,247,0.05) 40%, transparent 70%); background-size: 40px 40px, 40px 40px, 100% 100%;"></div>
+
+    <header class="border-b border-neutral-800/50 sticky top-0 w-full z-[100] flex flex-col shadow-md no-print backdrop-blur-md bg-[#020617]/80">
+        <div class="flex justify-center items-center py-4 px-4 gap-4 flex-wrap">
+            <button id="openFormBtn" class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-2.5 px-6 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-all duration-300 flex items-center gap-2 text-sm border border-blue-400/50">
+                <i class="fa-solid fa-clipboard-list text-base"></i> รายงานการสอนที่นี่
+            </button>
+            <button id="navDashboardBtn" class="bg-gradient-to-r from-brand-yellow to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-2.5 px-6 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.25)] transition-all duration-300 flex items-center gap-2 text-sm border border-yellow-400/50 hidden">
+                <i class="fa-solid fa-house text-base"></i> กลับหน้าหลัก
+            </button>
+            <button id="navSurveyBtn" class="bg-neutral-800/80 hover:bg-neutral-700/80 text-white font-bold py-2.5 px-6 rounded-full shadow-md transition-all duration-300 flex items-center gap-2 text-sm border border-neutral-600">
+                <i class="fa-solid fa-chart-pie text-brand-yellow text-base"></i> ผลการสำรวจ
+            </button>
+        </div>
+
+        <div class="max-w-[1600px] w-full mx-auto" id="filterBar">
+            <div class="flex items-center justify-center sm:justify-start px-4 py-2.5 gap-4 overflow-x-auto whitespace-nowrap hide-scrollbar border-t border-neutral-800/30">
+                <span class="text-white font-medium flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-filter text-brand-yellow"></i> ตัวกรองปีงบประมาณ:
+                </span>
+                <select id="filterYear" class="bg-brand-panel/80 border border-neutral-700 text-white rounded-md px-3 py-1 text-sm outline-none focus:border-brand-yellow min-w-[120px] backdrop-blur-sm" onchange="applyFilter()">
+                    <option value="all" selected>-- ทั้งหมด --</option>
+                </select>
+            </div>
+        </div>
+    </header>
+        
+    <!-- Dropdown Form -->
+    <div id="formDropdown" class="w-full bg-white transition-[max-height] duration-700 ease-in-out overflow-hidden max-h-0 shadow-2xl relative z-40 text-black border-t-0 no-print">
+        <div class="max-w-[1000px] mx-auto p-4 sm:p-8">
+            <div class="text-center mb-6 pt-2 pb-4 border-b border-gray-200 relative">
+                <button id="closeFormInnerBtn" class="absolute top-0 right-0 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">แบบรายงานผลการจัดการเรียนรู้เพื่อรับการนิเทศการสอนออนไลน์</h2>
+                <p class="text-blue-700 font-semibold text-sm sm:text-base">(Online Teaching Supervision Report) สำหรับพระสอนศีลธรรม ในโรงเรียน</p>
+            </div>
+
+            <div class="mb-8 px-4 sm:px-12">
+                <div class="flex items-center justify-between relative">
+                    <div class="absolute left-0 top-4 w-full h-1 bg-blue-200 z-0 rounded"></div>
+                    <div class="relative z-10 flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-md ring-4 ring-white mb-2 text-sm">1</div><span class="text-xs font-bold text-blue-700 text-center">แบบรายงานผล</span></div>
+                    <div class="relative z-10 flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold shadow-md ring-4 ring-white mb-2 text-sm">2</div><span class="text-xs font-bold text-blue-600 text-center">แบบสำรวจ</span></div>
+                    <div class="relative z-10 flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-blue-400 text-white flex items-center justify-center font-bold shadow-md ring-4 ring-white mb-2 text-sm"><i class="fa-solid fa-check"></i></div><span class="text-xs font-bold text-blue-500 text-center">ยืนยันข้อมูล</span></div>
+                </div>
+            </div>
+
+            <form class="space-y-10" id="supervisionForm">
+                <!-- ส่วนที่ 1: แบบรายงานผล -->
+                <div class="space-y-6">
+                    <div class="flex items-center gap-3 border-b-2 border-blue-600 pb-2">
+                        <h2 class="text-xl font-bold text-blue-800">ตอนที่ 1 แบบรายงานผล</h2>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm">
+                        <h3 class="text-base font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200 flex items-center gap-2">
+                            <i class="fa-solid fa-address-card text-blue-600"></i> ส่วนที่ 1: ข้อมูลทั่วไป
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="lg:col-span-3 mb-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-2">รูปภาพประจำตัว <span class="text-blue-600 text-[10px] font-normal">(ใช้ภาพแนวตั้งเท่านั้น)</span> <span class="text-red-500">*</span></label>
+                                <label class="flex flex-col items-center justify-center w-28 h-36 border-2 border-gray-300 border-dashed rounded-md cursor-pointer bg-white hover:border-blue-500 transition overflow-hidden relative shadow-sm">
+                                    <div id="profilePicPlaceholder" class="flex flex-col items-center justify-center"><i class="fa-regular fa-image text-2xl text-gray-400 mb-1"></i><p class="text-[9px] text-gray-500 font-medium text-center px-1">อัพโหลดรูปภาพ</p></div>
+                                    <img id="profilePicPreview" class="hidden w-full h-full object-contain absolute inset-0 bg-white" alt="Preview"><input type="file" id="f_profile" class="hidden" accept="image/*" required />
+                                </label>
+                            </div>
+
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">ปีการศึกษา <span class="text-red-500">*</span></label><input type="number" id="f_year" required placeholder="เช่น 2568" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none" value=""></div>
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">ภาคเรียนที่ <span class="text-red-500">*</span></label>
+                                <select id="f_term" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none">
+                                    <option value="1">1</option><option value="2">2</option><option value="ฤดูร้อน">ฤดูร้อน</option>
+                                </select>
+                            </div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">ชื่อ/ฉายา <span class="text-red-500">*</span></label><input type="text" id="f_name" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none"></div>
+                            
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">นามสกุล <span class="text-red-500">*</span></label><input type="text" id="f_lastname" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">โรงเรียนที่ปฏิบัติการสอน <span class="text-red-500">*</span></label><input type="text" id="f_school" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">ตำบล <span class="text-red-500">*</span></label><input type="text" id="f_subdistrict" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none"></div>
+
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">อำเภอ <span class="text-red-500">*</span></label><input type="text" id="f_district" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none"></div>
+                            
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">จังหวัด <span class="text-red-500">*</span></label>
+                                <select id="f_province" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none">
+                                    <option value="">-- เลือกจังหวัด --</option>
+                                    <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option><option value="กระบี่">กระบี่</option><option value="กาญจนบุรี">กาญจนบุรี</option><option value="กาฬสินธุ์">กาฬสินธุ์</option><option value="กำแพงเพชร">กำแพงเพชร</option><option value="ขอนแก่น">ขอนแก่น</option><option value="จันทบุรี">จันทบุรี</option><option value="ฉะเชิงเทรา">ฉะเชิงเทรา</option><option value="ชลบุรี">ชลบุรี</option><option value="ชัยนาท">ชัยนาท</option><option value="ชัยภูมิ">ชัยภูมิ</option><option value="ชุมพร">ชุมพร</option><option value="เชียงราย">เชียงราย</option><option value="เชียงใหม่">เชียงใหม่</option><option value="ตรัง">ตรัง</option><option value="ตราด">ตราด</option><option value="ตาก">ตาก</option><option value="นครนายก">นครนายก</option><option value="นครปฐม">นครปฐม</option><option value="นครพนม">นครพนม</option><option value="นครราชสีมา">นครราชสีมา</option><option value="นครศรีธรรมราช">นครศรีธรรมราช</option><option value="นครสวรรค์">นครสวรรค์</option><option value="นนทบุรี">นนทบุรี</option><option value="นราธิวาส">นราธิวาส</option><option value="น่าน">น่าน</option><option value="บึงกาฬ">บึงกาฬ</option><option value="บุรีรัมย์">บุรีรัมย์</option><option value="ปทุมธานี">ปทุมธานี</option><option value="ประจวบคีรีขันธ์">ประจวบคีรีขันธ์</option><option value="ปราจีนบุรี">ปราจีนบุรี</option><option value="ปัตตานี">ปัตตานี</option><option value="พระนครศรีอยุธยา">พระนครศรีอยุธยา</option><option value="พะเยา">พะเยา</option><option value="พังงา">พังงา</option><option value="พัทลุง">พัทลุง</option><option value="พิจิตร">พิจิตร</option><option value="พิษณุโลก">พิษณุโลก</option><option value="เพชรบุรี">เพชรบุรี</option><option value="เพชรบูรณ์">เพชรบูรณ์</option><option value="แพร่">แพร่</option><option value="ภูเก็ต">ภูเก็ต</option><option value="มหาสารคาม">มหาสารคาม</option><option value="มุกดาหาร">มุกดาหาร</option><option value="แม่ฮ่องสอน">แม่ฮ่องสอน</option><option value="ยโสธร">ยโสธร</option><option value="ยะลา">ยะลา</option><option value="ร้อยเอ็ด">ร้อยเอ็ด</option><option value="ระนอง">ระนอง</option><option value="ระยอง">ระยอง</option><option value="ราชบุรี">ราชบุรี</option><option value="ลพบุรี">ลพบุรี</option><option value="ลำปาง">ลำปาง</option><option value="ลำพูน">ลำพูน</option><option value="เลย">เลย</option><option value="ศรีสะเกษ">ศรีสะเกษ</option><option value="สกลนคร">สกลนคร</option><option value="สงขลา">สงขลา</option><option value="สตูล">สตูล</option><option value="สมุทรปราการ">สมุทรปราการ</option><option value="สมุทรสงคราม">สมุทรสงคราม</option><option value="สมุทรสาคร">สมุทรสาคร</option><option value="สระแก้ว">สระแก้ว</option><option value="สระบุรี">สระบุรี</option><option value="สิงห์บุรี">สิงห์บุรี</option><option value="สุโขทัย">สุโขทัย</option><option value="สุพรรณบุรี">สุพรรณบุรี</option><option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option><option value="สุรินทร์">สุรินทร์</option><option value="หนองคาย">หนองคาย</option><option value="หนองบัวลำภู">หนองบัวลำภู</option><option value="อ่างทอง">อ่างทอง</option><option value="อำนาจเจริญ">อำนาจเจริญ</option><option value="อุดรธานี">อุดรธานี</option><option value="อุตรดิตถ์">อุตรดิตถ์</option><option value="อุทัยธานี">อุทัยธานี</option><option value="อุบลราชธานี">อุบลราชธานี</option>
+                                </select>
+                            </div>
+
+                            <div class="lg:col-span-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">สังกัดศูนย์อำนวยการ <span class="text-red-500">*</span></label>
+                                <select id="f_center" onchange="document.getElementById('f_center_other').style.display = this.value === 'อื่นๆ โปรดระบุ' ? 'block' : 'none'" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none mb-2">
+                                    <option value="">-- เลือกศูนย์อำนวยการ --</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตหนองคาย">ศูนย์อำนวยการวิทยาเขตหนองคาย</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตนครศรีธรรมราช">ศูนย์อำนวยการวิทยาเขตนครศรีธรรมราช</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตเชียงใหม่">ศูนย์อำนวยการวิทยาเขตเชียงใหม่</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตขอนแก่น">ศูนย์อำนวยการวิทยาเขตขอนแก่น</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตนครราชสีมา">ศูนย์อำนวยการวิทยาเขตนครราชสีมา</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตอุบลราชธานี">ศูนย์อำนวยการวิทยาเขตอุบลราชธานี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตแพร่">ศูนย์อำนวยการวิทยาเขตแพร่</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตสุรินทร์">ศูนย์อำนวยการวิทยาเขตสุรินทร์</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตพะเยา">ศูนย์อำนวยการวิทยาเขตพะเยา</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตนครสวรรค์">ศูนย์อำนวยการวิทยาเขตนครสวรรค์</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์เลย">ศูนย์อำนวยการวิทยาลัยสงฆ์เลย</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธปัญญาศรีทวารวดี">ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธปัญญาศรีทวารวดี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์นครพนม">ศูนย์อำนวยการวิทยาลัยสงฆ์นครพนม</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ลำพูน">ศูนย์อำนวยการวิทยาลัยสงฆ์ลำพูน</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธชินราช">ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธชินราช</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์บุรีรัมย์">ศูนย์อำนวยการวิทยาลัยสงฆ์บุรีรัมย์</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ปัตตานี">ศูนย์อำนวยการวิทยาลัยสงฆ์ปัตตานี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์นครน่านเฉลิมพระเกียรติฯ">ศูนย์อำนวยการวิทยาลัยสงฆ์นครน่านเฉลิมพระเกียรติฯ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธโสธร">ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธโสธร</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์นครลำปาง">ศูนย์อำนวยการวิทยาลัยสงฆ์นครลำปาง</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์เชียงราย">ศูนย์อำนวยการวิทยาลัยสงฆ์เชียงราย</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ศรีสะเกษ">ศูนย์อำนวยการวิทยาลัยสงฆ์ศรีสะเกษ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ราชบุรี">ศูนย์อำนวยการวิทยาลัยสงฆ์ราชบุรี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พ่อขุนผาเมือง">ศูนย์อำนวยการวิทยาลัยสงฆ์พ่อขุนผาเมือง</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ร้อยเอ็ด">ศูนย์อำนวยการวิทยาลัยสงฆ์ร้อยเอ็ด</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ชัยภูมิ">ศูนย์อำนวยการวิทยาลัยสงฆ์ชัยภูมิ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พิจิตร">ศูนย์อำนวยการวิทยาลัยสงฆ์พิจิตร</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์สุพรรณบุรีศรีสุวรรณภูมิ">ศูนย์อำนวยการวิทยาลัยสงฆ์สุพรรณบุรีศรีสุวรรณภูมิ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์มหาสารคาม">ศูนย์อำนวยการวิทยาลัยสงฆ์มหาสารคาม</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์สุราษฎร์ธานี">ศูนย์อำนวยการวิทยาลัยสงฆ์สุราษฎร์ธานี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์อุทัยธานี">ศูนย์อำนวยการวิทยาลัยสงฆ์อุทัยธานี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์เพชรบุรี">ศูนย์อำนวยการวิทยาลัยสงฆ์เพชรบุรี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์กาญจนบุรีศรีไพบูลย์">ศูนย์อำนวยการวิทยาลัยสงฆ์กาญจนบุรีศรีไพบูลย์</option>
+                                    <option value="หน่วยวิทยบริการ วัดหงส์ประดิษฐาราม">หน่วยวิทยบริการ วัดหงส์ประดิษฐาราม</option>
+                                    <option value="ส่วนกลาง">ส่วนกลาง</option>
+                                    <option value="อื่นๆ โปรดระบุ">อื่นๆ โปรดระบุ</option>
+                                </select>
+                                <input type="text" id="f_center_other" placeholder="โปรดระบุสังกัดศูนย์อำนวยการ..." style="display: none;" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                            </div>
+
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">วันที่ปฏิบัติการสอน <span class="text-red-500">*</span></label><input type="date" id="f_date" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none"></div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">ปฏิบัติการสอนสัปดาห์ละ (ชม.) <span class="text-red-500">*</span></label><input type="number" id="f_hours" required min="1" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"></div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">ระดับชั้นที่ท่านปฏิบัติการสอน ณ ปัจจุบัน (ระดับชั้นที่สถานศึกษามอบหมายให้ท่านสอน) <span class="text-red-500">*</span></label>
+                                <select id="f_level" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 outline-none">
+                                    <option value="">-- เลือกระดับชั้น --</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๑">ชั้นประถมศึกษาปีที่ ๑</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๒">ชั้นประถมศึกษาปีที่ ๒</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๓">ชั้นประถมศึกษาปีที่ ๓</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๔">ชั้นประถมศึกษาปีที่ ๔</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๕">ชั้นประถมศึกษาปีที่ ๕</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๖">ชั้นประถมศึกษาปีที่ ๖</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๑">ชั้นมัธยมศึกษาปีที่ ๑</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๒">ชั้นมัธยมศึกษาปีที่ ๒</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๓">ชั้นมัธยมศึกษาปีที่ ๓</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๔">ชั้นมัธยมศึกษาปีที่ ๔</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๕">ชั้นมัธยมศึกษาปีที่ ๕</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๖">ชั้นมัธยมศึกษาปีที่ ๖</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๓)">สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๓)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ป.๔ - ป.๖)">สอนแบบรวมคละชั้นเรียน (ป.๔ - ป.๖)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๖)">สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๖)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๓)">สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๓)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ม.๔ - ม.๖)">สอนแบบรวมคละชั้นเรียน (ม.๔ - ม.๖)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๖)">สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๖)</option>
+                                    <option value="สอนนักศึกษาระดับชั้นปวช./ปวส.">สอนนักศึกษาระดับชั้นปวช./ปวส.</option>
+                                </select>
+                            </div>
+                            
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">ชื่อครูพี่เลี้ยง <span class="text-red-500">*</span></label><input type="text" id="f_mentor" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"></div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">ชื่อผู้อำนวยการโรงเรียน <span class="text-red-500">*</span></label><input type="text" id="f_director" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"></div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">เบอร์โทรที่ติดต่อท่านได้ <span class="text-red-500">*</span></label><input type="tel" id="f_phone" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"></div>
+                            <div><label class="block text-gray-700 text-xs font-semibold mb-1">จำนวนนักเรียน <span class="text-red-500">*</span></label><input type="number" id="f_students" required min="1" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm">
+                        <h3 class="text-base font-bold text-gray-900 mb-2 flex items-center gap-2 pb-2 border-b border-gray-200">
+                            <i class="fa-solid fa-camera text-blue-600"></i> ส่วนที่ 3: ร่องรอยหลักฐานประกอบการนิเทศออนไลน์
+                        </h3>
+                        <p class="text-xs text-gray-600 mb-3 mt-2">(แนบภาพถ่ายบรรยากาศการสอนในห้องเรียนจริงเพื่อประกอบการนิเทศ (2–4 ภาพ) แสดงเป็นรูปแบบกล่อง กริด 4 ช่อง มีภาพตัวอย่างไฟล์ ขนาดไม่เกิน 10MB)</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                            <label class="flex flex-col items-center justify-center h-32 border-2 border-gray-300 border-dashed rounded cursor-pointer bg-white hover:border-blue-500 relative overflow-hidden shadow-sm">
+                                <div id="ev1Placeholder" class="flex flex-col items-center justify-center p-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500 mb-2"></i><p class="text-xs font-medium text-gray-700">อัพโหลด</p><p class="text-[10px] mt-1 text-gray-500">ภาพที่ 1 นำเข้าสู่บทเรียน</p></div>
+                                <img id="ev1Preview" class="hidden w-full h-full object-contain absolute inset-0 bg-white"><input type="file" id="f_ev1" required class="hidden" accept="image/*" />
+                            </label>
+                            <label class="flex flex-col items-center justify-center h-32 border-2 border-gray-300 border-dashed rounded cursor-pointer bg-white hover:border-blue-500 relative overflow-hidden shadow-sm">
+                                <div id="ev2Placeholder" class="flex flex-col items-center justify-center p-2"><i class="fa-solid fa-cloud-arrow-up text-blue-500 mb-2"></i><p class="text-xs font-medium text-gray-700">อัพโหลด</p><p class="text-[10px] mt-1 text-gray-500">ภาพที่ 2 กิจกรรมกลุ่ม</p></div>
+                                <img id="ev2Preview" class="hidden w-full h-full object-contain absolute inset-0 bg-white"><input type="file" id="f_ev2" required class="hidden" accept="image/*" />
+                            </label>
+                            <label class="flex flex-col items-center justify-center h-32 border-2 border-gray-300 border-dashed rounded cursor-pointer bg-white hover:border-blue-500 relative overflow-hidden shadow-sm">
+                                <div id="ev3Placeholder" class="flex flex-col items-center justify-center p-2"><i class="fa-solid fa-cloud-arrow-up text-gray-400 mb-2"></i><p class="text-xs font-medium text-gray-700">อัพโหลด (ทางเลือก)</p><p class="text-[10px] mt-1 text-gray-500">ภาพที่ 3 ลงมือปฏิบัติ</p></div>
+                                <img id="ev3Preview" class="hidden w-full h-full object-contain absolute inset-0 bg-white"><input type="file" id="f_ev3" class="hidden" accept="image/*" />
+                            </label>
+                            <label class="flex flex-col items-center justify-center h-32 border-2 border-gray-300 border-dashed rounded cursor-pointer bg-white hover:border-blue-500 relative overflow-hidden shadow-sm">
+                                <div id="ev4Placeholder" class="flex flex-col items-center justify-center p-2"><i class="fa-solid fa-cloud-arrow-up text-gray-400 mb-2"></i><p class="text-xs font-medium text-gray-700">อัพโหลด (ทางเลือก)</p><p class="text-[10px] mt-1 text-gray-500">ภาพที่ 4 สรุปและสะท้อนคิด</p></div>
+                                <img id="ev4Preview" class="hidden w-full h-full object-contain absolute inset-0 bg-white"><input type="file" id="f_ev4" class="hidden" accept="image/*" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm">
+                        <h3 class="text-base font-bold text-gray-900 mb-3 pb-2 border-b border-gray-200 flex items-center gap-2">
+                            <i class="fa-solid fa-comment-dots text-blue-600"></i> ส่วนที่ 4: การสะท้อนคิดและการนำผลการนิเทศไปพัฒนาการสอน
+                        </h3>
+                        <div class="space-y-4">
+                            <div><label class="block text-sm font-bold mb-1">4.1 เนื้อหากิจกรรมที่สอน <span class="text-blue-600 text-xs font-normal">( พิมพ์สั้นๆ กระชับ ไม่เกิน 3 บรรทัด )</span> <span class="text-red-500">*</span></label><textarea id="f_activity" rows="2" required class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none resize-none focus:border-blue-500"></textarea></div>
+                            <h4 class="font-bold text-gray-800 text-sm mt-4 border-b border-gray-200 pb-1">4.2 คำถามสะท้อนการคิด</h4>
+                            <div><label class="block text-xs font-semibold mb-1 text-gray-800">๑. สิ่งที่ท่านทำได้ดีในการจัดการเรียนการสอนในปีการศึกษาที่ผ่านมา คือ เรื่องใดบ้าง ? เพราะอะไร ? <span class="text-red-500">*</span></label><textarea id="f_good" rows="2" required class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none resize-none focus:border-blue-500"></textarea></div>
+                            <div><label class="block text-xs font-semibold mb-1 text-gray-800">๒. สิ่งที่ท่านควรปรับปรุงแก้ไขตนเองในการจัดการเรียนการสอนในปีการศึกษาที่ผ่านมา คือ เรื่องใดบ้าง ? เพราะอะไร? <span class="text-red-500">*</span></label><textarea id="f_improve" rows="2" required class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none resize-none focus:border-blue-500"></textarea></div>
+                            <div><label class="block text-xs font-semibold mb-1 text-gray-800">๓. วิธีการที่ท่านใช้ในการปรับปรุงการจัดการเรียนการสอนของท่านเอง เพื่อให้มีประสิทธิภาพมากยิ่งขึ้น ควรทำอย่างไร ? <span class="text-red-500">*</span></label><textarea id="f_develop" rows="2" required class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none resize-none focus:border-blue-500"></textarea></div>
+                            <div><label class="block text-xs font-semibold mb-1 text-gray-800">๔. การจัดการเรียนการสอนของท่านในปีการศึกษาที่ผ่านมา สร้างการเปลี่ยนเเปลงพฤติกรรมด้าน ศีลธรรม จริยธรรม และมารยาทชาวพุทธของนักเรียนได้อย่างชัดเจน เป็นรูปธรรมในเรื่องใดบ้าง ? <span class="text-red-500">*</span></label><textarea id="f_impact" rows="2" required class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm outline-none resize-none focus:border-blue-500"></textarea></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ส่วนที่ 2: แบบสำรวจ -->
+                <div class="space-y-6 pt-6 border-t-2 border-dashed border-gray-300">
+                    <div class="flex items-center gap-3 border-b-2 border-blue-600 pb-2">
+                        <h2 class="text-xl font-bold text-blue-800">ตอนที่ 2 แบบสำรวจ</h2>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-5 rounded-md border border-gray-200 shadow-sm">
+                        <div class="text-center mb-4">
+                            <h3 class="font-bold text-gray-900 text-base">แบบสอบถาม</h3>
+                            <h4 class="font-semibold text-gray-800 text-sm mt-1">เรื่อง สภาพปัจจุบัน และปัญหาการจัดการเรียนการสอนพระพุทธศาสนา ของพระสอนศีลธรรมในโรงเรียน</h4>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 p-4 rounded mb-6 text-sm text-gray-700 leading-relaxed font-medium text-center shadow-sm">
+                            <span class="font-bold text-blue-800">คำชี้แจง :</span> แบบสอบถามนี้มีวัตถุประสงค์เพื่อศึกษาข้อมูลเกี่ยวกับสภาพปัจจุบัน และปัญหาการจัดการเรียนการสอนพระพุทธศาสนาของพระสอนศีลธรรมในโรงเรียน ซึ่งข้อมูลที่ได้จากท่านจะนำไปใช้เป็นข้อมูลพื้นฐานสำคัญสำหรับการพัฒนาหลักสูตรฝึกอบรม ชุดการจัดกิจกรรมการเรียนรู้พระพุทธศาสนาสำหรับพระสอนศีลธรรม เพื่อให้มีความสอดคล้องและเหมาะสมกับนักเรียนในสถานการณ์ยุคปัจจุบัน
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2 border-b border-gray-200 pb-2 mb-2"><h4 class="font-bold text-gray-800 text-sm">ส่วนที่ 1 ข้อมูลทั่วไป</h4></div>
+                            
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">พรรษา <span class="text-red-500">*</span></label>
+                                <select id="s_phansa" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือก --</option>
+                                    <option value="๑ - ๓ พรรษา">๑ - ๓ พรรษา</option>
+                                    <option value="๔ - ๕ พรรษา">๔ - ๕ พรรษา</option>
+                                    <option value="๕ - ๑๐ พรรษา">๕ - ๑๐ พรรษา</option>
+                                    <option value="มากกว่า ๑๐ พรรษา">มากกว่า ๑๐ พรรษา</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">การศึกษาทางธรรม (แผนกนักธรรม) <span class="text-red-500">*</span></label>
+                                <select id="s_dhamma" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือก --</option>
+                                    <option value="นักธรรมเอก">นักธรรมเอก</option>
+                                    <option value="นักธรรมโท">นักธรรมโท</option>
+                                    <option value="นักธรรมตรี">นักธรรมตรี</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">การศึกษาทางธรรม (แผนกบาลี) <span class="text-red-500">*</span></label>
+                                <select id="s_pali" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือก --</option>
+                                    <option value="ป.ธ. ๑ – ๒">ป.ธ. ๑ – ๒</option><option value="ป.ธ. ๓">ป.ธ. ๓</option><option value="ป.ธ. ๔">ป.ธ. ๔</option><option value="ป.ธ. ๕">ป.ธ. ๕</option>
+                                    <option value="ป.ธ. ๖">ป.ธ. ๖</option><option value="ป.ธ. ๗">ป.ธ. ๗</option><option value="ป.ธ. ๘">ป.ธ. ๘</option><option value="ป.ธ. ๙">ป.ธ. ๙</option>
+                                    <option value="ไม่มี">ไม่มี</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">การศึกษาทางโลก <span class="text-red-500">*</span></label>
+                                <select id="s_secular_edu" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือก --</option>
+                                    <option value="ต่ำกว่าปริญญาตรี">ต่ำกว่าปริญญาตรี</option><option value="ปริญญาตรี">ปริญญาตรี</option><option value="ปริญญาโท">ปริญญาโท</option><option value="ปริญญาเอก">ปริญญาเอก</option>
+                                </select>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">สังกัดศูนย์อำนวยการ <span class="text-red-500">*</span></label>
+                                <select id="s_center" onchange="document.getElementById('s_center_other').style.display = this.value === 'อื่นๆ โปรดระบุ' ? 'block' : 'none'" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500 mb-2">
+                                    <option value="">-- เลือกศูนย์อำนวยการ --</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตหนองคาย">ศูนย์อำนวยการวิทยาเขตหนองคาย</option><option value="ศูนย์อำนวยการวิทยาเขตนครศรีธรรมราช">ศูนย์อำนวยการวิทยาเขตนครศรีธรรมราช</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตเชียงใหม่">ศูนย์อำนวยการวิทยาเขตเชียงใหม่</option><option value="ศูนย์อำนวยการวิทยาเขตขอนแก่น">ศูนย์อำนวยการวิทยาเขตขอนแก่น</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตนครราชสีมา">ศูนย์อำนวยการวิทยาเขตนครราชสีมา</option><option value="ศูนย์อำนวยการวิทยาเขตอุบลราชธานี">ศูนย์อำนวยการวิทยาเขตอุบลราชธานี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตแพร่">ศูนย์อำนวยการวิทยาเขตแพร่</option><option value="ศูนย์อำนวยการวิทยาเขตสุรินทร์">ศูนย์อำนวยการวิทยาเขตสุรินทร์</option>
+                                    <option value="ศูนย์อำนวยการวิทยาเขตพะเยา">ศูนย์อำนวยการวิทยาเขตพะเยา</option><option value="ศูนย์อำนวยการวิทยาเขตนครสวรรค์">ศูนย์อำนวยการวิทยาเขตนครสวรรค์</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์เลย">ศูนย์อำนวยการวิทยาลัยสงฆ์เลย</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธปัญญาศรีทวารวดี">ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธปัญญาศรีทวารวดี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์นครพนม">ศูนย์อำนวยการวิทยาลัยสงฆ์นครพนม</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ลำพูน">ศูนย์อำนวยการวิทยาลัยสงฆ์ลำพูน</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธชินราช">ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธชินราช</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์บุรีรัมย์">ศูนย์อำนวยการวิทยาลัยสงฆ์บุรีรัมย์</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ปัตตานี">ศูนย์อำนวยการวิทยาลัยสงฆ์ปัตตานี</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์นครน่านเฉลิมพระเกียรติฯ">ศูนย์อำนวยการวิทยาลัยสงฆ์นครน่านเฉลิมพระเกียรติฯ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธโสธร">ศูนย์อำนวยการวิทยาลัยสงฆ์พุทธโสธร</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์นครลำปาง">ศูนย์อำนวยการวิทยาลัยสงฆ์นครลำปาง</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์เชียงราย">ศูนย์อำนวยการวิทยาลัยสงฆ์เชียงราย</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ศรีสะเกษ">ศูนย์อำนวยการวิทยาลัยสงฆ์ศรีสะเกษ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ราชบุรี">ศูนย์อำนวยการวิทยาลัยสงฆ์ราชบุรี</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พ่อขุนผาเมือง">ศูนย์อำนวยการวิทยาลัยสงฆ์พ่อขุนผาเมือง</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ร้อยเอ็ด">ศูนย์อำนวยการวิทยาลัยสงฆ์ร้อยเอ็ด</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์ชัยภูมิ">ศูนย์อำนวยการวิทยาลัยสงฆ์ชัยภูมิ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์พิจิตร">ศูนย์อำนวยการวิทยาลัยสงฆ์พิจิตร</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์สุพรรณบุรีศรีสุวรรณภูมิ">ศูนย์อำนวยการวิทยาลัยสงฆ์สุพรรณบุรีศรีสุวรรณภูมิ</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์มหาสารคาม">ศูนย์อำนวยการวิทยาลัยสงฆ์มหาสารคาม</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์สุราษฎร์ธานี">ศูนย์อำนวยการวิทยาลัยสงฆ์สุราษฎร์ธานี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์อุทัยธานี">ศูนย์อำนวยการวิทยาลัยสงฆ์อุทัยธานี</option><option value="ศูนย์อำนวยการวิทยาลัยสงฆ์เพชรบุรี">ศูนย์อำนวยการวิทยาลัยสงฆ์เพชรบุรี</option>
+                                    <option value="ศูนย์อำนวยการวิทยาลัยสงฆ์กาญจนบุรีศรีไพบูลย์">ศูนย์อำนวยการวิทยาลัยสงฆ์กาญจนบุรีศรีไพบูลย์</option><option value="หน่วยวิทยบริการ วัดหงส์ประดิษฐาราม">หน่วยวิทยบริการ วัดหงส์ประดิษฐาราม</option>
+                                    <option value="อื่นๆ โปรดระบุ">อื่นๆ โปรดระบุ</option>
+                                </select>
+                                <input type="text" id="s_center_other" placeholder="โปรดระบุสังกัดศูนย์อำนวยการ..." style="display: none;" class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">จังหวัด <span class="text-red-500">*</span></label>
+                                <select id="s_province" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือกจังหวัด --</option>
+                                    <option value="กรุงเทพมหานคร">กรุงเทพมหานคร</option><option value="กระบี่">กระบี่</option><option value="กาญจนบุรี">กาญจนบุรี</option><option value="กาฬสินธุ์">กาฬสินธุ์</option><option value="กำแพงเพชร">กำแพงเพชร</option><option value="ขอนแก่น">ขอนแก่น</option><option value="จันทบุรี">จันทบุรี</option><option value="ฉะเชิงเทรา">ฉะเชิงเทรา</option><option value="ชลบุรี">ชลบุรี</option><option value="ชัยนาท">ชัยนาท</option><option value="ชัยภูมิ">ชัยภูมิ</option><option value="ชุมพร">ชุมพร</option><option value="เชียงราย">เชียงราย</option><option value="เชียงใหม่">เชียงใหม่</option><option value="ตรัง">ตรัง</option><option value="ตราด">ตราด</option><option value="ตาก">ตาก</option><option value="นครนายก">นครนายก</option><option value="นครปฐม">นครปฐม</option><option value="นครพนม">นครพนม</option><option value="นครราชสีมา">นครราชสีมา</option><option value="นครศรีธรรมราช">นครศรีธรรมราช</option><option value="นครสวรรค์">นครสวรรค์</option><option value="นนทบุรี">นนทบุรี</option><option value="นราธิวาส">นราธิวาส</option><option value="น่าน">น่าน</option><option value="บึงกาฬ">บึงกาฬ</option><option value="บุรีรัมย์">บุรีรัมย์</option><option value="ปทุมธานี">ปทุมธานี</option><option value="ประจวบคีรีขันธ์">ประจวบคีรีขันธ์</option><option value="ปราจีนบุรี">ปราจีนบุรี</option><option value="ปัตตานี">ปัตตานี</option><option value="พระนครศรีอยุธยา">พระนครศรีอยุธยา</option><option value="พะเยา">พะเยา</option><option value="พังงา">พังงา</option><option value="พัทลุง">พัทลุง</option><option value="พิจิตร">พิจิตร</option><option value="พิษณุโลก">พิษณุโลก</option><option value="เพชรบุรี">เพชรบุรี</option><option value="เพชรบูรณ์">เพชรบูรณ์</option><option value="แพร่">แพร่</option><option value="ภูเก็ต">ภูเก็ต</option><option value="มหาสารคาม">มหาสารคาม</option><option value="มุกดาหาร">มุกดาหาร</option><option value="แม่ฮ่องสอน">แม่ฮ่องสอน</option><option value="ยโสธร">ยโสธร</option><option value="ยะลา">ยะลา</option><option value="ร้อยเอ็ด">ร้อยเอ็ด</option><option value="ระนอง">ระนอง</option><option value="ระยอง">ระยอง</option><option value="ราชบุรี">ราชบุรี</option><option value="ลพบุรี">ลพบุรี</option><option value="ลำปาง">ลำปาง</option><option value="ลำพูน">ลำพูน</option><option value="เลย">เลย</option><option value="ศรีสะเกษ">ศรีสะเกษ</option><option value="สกลนคร">สกลนคร</option><option value="สงขลา">สงขลา</option><option value="สตูล">สตูล</option><option value="สมุทรปราการ">สมุทรปราการ</option><option value="สมุทรสงคราม">สมุทรสงคราม</option><option value="สมุทรสาคร">สมุทรสาคร</option><option value="สระแก้ว">สระแก้ว</option><option value="สระบุรี">สระบุรี</option><option value="สิงห์บุรี">สิงห์บุรี</option><option value="สุโขทัย">สุโขทัย</option><option value="สุพรรณบุรี">สุพรรณบุรี</option><option value="สุราษฎร์ธานี">สุราษฎร์ธานี</option><option value="สุรินทร์">สุรินทร์</option><option value="หนองคาย">หนองคาย</option><option value="หนองบัวลำภู">หนองบัวลำภู</option><option value="อ่างทอง">อ่างทอง</option><option value="อำนาจเจริญ">อำนาจเจริญ</option><option value="อุดรธานี">อุดรธานี</option><option value="อุตรดิตถ์">อุตรดิตถ์</option><option value="อุทัยธานี">อุทัยธานี</option><option value="อุบลราชธานี">อุบลราชธานี</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">ประสบการณ์ในการสอนศีลธรรมในสถานศึกษา <span class="text-red-500">*</span></label>
+                                <select id="s_experience" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือก --</option>
+                                    <option value="น้อยกว่า ๕ ปี">น้อยกว่า ๕ ปี</option>
+                                    <option value="๕ - ๑๐ ปี">๕ - ๑๐ ปี</option>
+                                    <option value="๑๑ - ๑๕ ปี">๑๑ - ๑๕ ปี</option>
+                                    <option value="มากกว่า ๑๕ ปี">มากกว่า ๑๕ ปี</option>
+                                </select>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">ระดับชั้นที่ท่านปฏิบัติการสอน ณ ปัจจุบัน (ระดับชั้นที่สถานศึกษามอบหมายให้ท่านสอน) <span class="text-red-500">*</span></label>
+                                <select id="s_level" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือกระดับชั้น --</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๑">ชั้นประถมศึกษาปีที่ ๑</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๒">ชั้นประถมศึกษาปีที่ ๒</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๓">ชั้นประถมศึกษาปีที่ ๓</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๔">ชั้นประถมศึกษาปีที่ ๔</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๕">ชั้นประถมศึกษาปีที่ ๕</option>
+                                    <option value="ชั้นประถมศึกษาปีที่ ๖">ชั้นประถมศึกษาปีที่ ๖</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๑">ชั้นมัธยมศึกษาปีที่ ๑</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๒">ชั้นมัธยมศึกษาปีที่ ๒</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๓">ชั้นมัธยมศึกษาปีที่ ๓</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๔">ชั้นมัธยมศึกษาปีที่ ๔</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๕">ชั้นมัธยมศึกษาปีที่ ๕</option>
+                                    <option value="ชั้นมัธยมศึกษาปีที่ ๖">ชั้นมัธยมศึกษาปีที่ ๖</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๓)">สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๓)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ป.๔ - ป.๖)">สอนแบบรวมคละชั้นเรียน (ป.๔ - ป.๖)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๖)">สอนแบบรวมคละชั้นเรียน (ป.๑ - ป.๖)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๓)">สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๓)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ม.๔ - ม.๖)">สอนแบบรวมคละชั้นเรียน (ม.๔ - ม.๖)</option>
+                                    <option value="สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๖)">สอนแบบรวมคละชั้นเรียน (ม.๑ - ม.๖)</option>
+                                    <option value="สอนนักศึกษาระดับชั้นปวช./ปวส.">สอนนักศึกษาระดับชั้นปวช./ปวส.</option>
+                                </select>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">เนื้อหาหรือหลักสูตรที่ท่านใช้สำหรับการจัดการเรียนการสอนกับนักเรียน <span class="text-red-500">*</span></label>
+                                <select id="s_curriculum" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือกหลักสูตร --</option>
+                                    <option value="สอนตามเนื้อหาหลักสูตรธรรมศึกษา">สอนตามเนื้อหาหลักสูตรธรรมศึกษา</option>
+                                    <option value="สอนตามเนื้อหาหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน ของกระทรวงศึกษาธิการ">สอนตามเนื้อหาหลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน ของกระทรวงศึกษาธิการ (ทางโรงเรียนเป็นผู้กำหนดให้)</option>
+                                    <option value="กำหนดเนื้อหาการสอนขึ้นมาเอง ตามที่ต้องการสอน">กำหนดเนื้อหาการสอนขึ้นมาเอง ตามที่ต้องการสอน</option>
+                                </select>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-gray-700 text-xs font-semibold mb-1">ปัญหาและความต้องการของท่าน ในการพัฒนาสมรรถนะการจัดการเรียนรู้พระพุทธศาสนาเพื่อเสริมสร้างศีลธรรมของนักเรียนในศตวรรษที่ ๒๑ <br><span class="text-blue-600 font-normal">(เลือก ๑ สมรรถนะที่ท่านต้องการพัฒนาตนเองมากที่สุด)</span> <span class="text-red-500">*</span></label>
+                                <select id="s_competency" required class="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm text-gray-900 outline-none focus:border-blue-500">
+                                    <option value="">-- เลือกสมรรถนะ --</option>
+                                    <option value="สมรรถนะที่ ๑ การพัฒนากิจกรรมการจัดการเรียนรู้พระพุทธศาสนาในศตวรรษที่ ๒๑">สมรรถนะที่ ๑ การพัฒนากิจกรรมการจัดการเรียนรู้พระพุทธศาสนาในศตวรรษที่ ๒๑</option>
+                                    <option value="สมรรถนะที่ ๒ วิธีการจัดการเรียนรู้พระพุทธศาสนาในศตวรรษที่ ๒๑">สมรรถนะที่ ๒ วิธีการจัดการเรียนรู้พระพุทธศาสนาในศตวรรษที่ ๒๑</option>
+                                    <option value="สมรรถนะที่ ๓ การใช้สื่อและเทคโนโลยีดิจิทัลในการจัดการเรียนรู้">สมรรถนะที่ ๓ การใช้สื่อและเทคโนโลยีดิจิทัลในการจัดการเรียนรู้</option>
+                                    <option value="สมรรถนะที่ ๔ การวัดและประเมินผลเพื่อพัฒนาศักยภาพนักเรียน">สมรรถนะที่ ๔ การวัดและประเมินผลเพื่อพัฒนาศักยภาพนักเรียน</option>
+                                    <option value="สมรรถนะที่ ๕ การใช้จิตวิทยาเพื่อการจัดการเรียนรู้">สมรรถนะที่ ๕ การใช้จิตวิทยาเพื่อการจัดการเรียนรู้</option>
+                                    <option value="สมรรถนะที่ ๖ การจัดการชั้นเรียนและสิ่งแวดล้อมทางการเรียนรู้">สมรรถนะที่ ๖ การจัดการชั้นเรียนและสิ่งแวดล้อมทางการเรียนรู้</option>
+                                    <option value="สมรรถนะที่ ๗ ทักษะการสอนศีลธรรมในศตวรรษที่ ๒๑">สมรรถนะที่ ๗ ทักษะการสอนศีลธรรมในศตวรรษที่ ๒๑</option>
+                                    <option value="สมรรถนะที่ ๘ ภาวะผู้นำและการทำงานเป็นทีมในการจัดการเรียนรู้">สมรรถนะที่ ๘ ภาวะผู้นำและการทำงานเป็นทีมในการจัดการเรียนรู้</option>
+                                    <option value="สมรรถนะที่ ๙ การจัดการเรียนการสอนแบบรวมคละชั้น (นักเรียนหลายชั้นมาเรียนรวมกัน)">สมรรถนะที่ ๙ การจัดการเรียนการสอนแบบรวมคละชั้น (นักเรียนหลายชั้นมาเรียนรวมกัน)</option>
+                                    <option value="สมรรถนะที่ ๑๐ จิตวิญญาณและคุณธรรมความเป็น (ครู) พระสอนศีลธรรม">สมรรถนะที่ ๑๐ จิตวิญญาณและคุณธรรมความเป็น (ครู) พระสอนศีลธรรม</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ส่วนที่ 3: ยืนยันข้อมูล -->
+                <div class="space-y-4 pt-6 border-t-2 border-dashed border-gray-300">
+                    <div class="flex items-center gap-3 border-b-2 border-blue-600 pb-2">
+                        <h2 class="text-xl font-bold text-blue-800">ยืนยันข้อมูล</h2>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-md border border-blue-100 flex items-center gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="consent" value="yes" required checked class="w-4 h-4 text-blue-600"> ยินยอมเผยแพร่ข้อมูลและรับรองข้อมูลจริง</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold"><input type="radio" name="consent" value="no" required class="w-4 h-4 text-gray-600"> ไม่ยินยอม</label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                    <button type="button" id="cancelFormBtn" class="px-5 py-2.5 rounded-full border border-gray-300 text-sm font-medium hover:bg-gray-100 transition">ยกเลิก</button>
+                    <button type="submit" id="submitFormBtn" class="px-8 py-2.5 rounded-full bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition flex items-center gap-2 shadow-md">
+                        <i class="fa-solid fa-paper-plane"></i> ส่งรายงาน
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main View (Dashboard) -->
+    <main id="mainView" class="flex-grow z-0 relative py-6 no-print">
+        <div class="max-w-[1600px] mx-auto p-4 lg:p-6 flex flex-col lg:flex-row gap-6">
+            
+            <!-- Left Sidebar -->
+            <aside class="w-full lg:w-1/4 xl:w-1/5 order-2 lg:order-1 flex flex-col gap-4">
+                <div class="bg-[#0f0f11]/90 rounded-lg overflow-hidden border border-neutral-800/50 shadow-lg backdrop-blur-sm">
+                    <div class="bg-neutral-800/60 py-3 text-center text-white font-medium border-b border-neutral-700/50">จังหวัด</div>
+                    <ul class="flex flex-col py-2 max-h-[400px] overflow-y-auto" id="provinceList">
+                        <div class="text-center text-gray-500 text-xs py-4">กำลังโหลด...</div>
+                    </ul>
+                </div>
+
+                <div class="bg-[#0f0f11]/90 rounded-lg overflow-hidden border border-neutral-800/50 shadow-lg mt-2 lg:mt-0 backdrop-blur-sm">
+                    <div class="bg-neutral-800/60 py-3 text-center text-white font-medium border-b border-neutral-700/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-chart-pie text-brand-yellow"></i> สถิติผู้เข้าชม
+                    </div>
+                    <ul class="flex flex-col py-2">
+                        <li class="px-4 py-2 flex justify-between items-center"><span class="text-gray-400 text-xs">วันนี้</span><span class="text-xs text-white font-medium" id="statToday">0</span></li>
+                        <li class="px-4 py-2 flex justify-between items-center"><span class="text-gray-400 text-xs">สัปดาห์นี้</span><span class="text-xs text-white font-medium" id="statWeek">0</span></li>
+                        <li class="px-4 py-2 flex justify-between items-center"><span class="text-gray-400 text-xs">เดือนนี้</span><span class="text-xs text-white font-medium" id="statMonth">0</span></li>
+                        <li class="px-4 py-2 flex justify-between items-center"><span class="text-gray-400 text-xs">ปีงบประมาณ <span id="statYearLabel">2568</span></span><span class="text-xs text-white font-medium" id="statYear">0</span></li>
+                        <li class="px-4 py-2 flex justify-between items-center border-t border-neutral-800/50 mt-1 pt-3"><span class="text-brand-yellow text-xs font-bold">ทั้งหมด</span><span class="text-xs text-brand-yellow font-bold" id="statAll">0</span></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- Main Content (Cards) -->
+            <section class="w-full lg:w-2/4 xl:w-3/5 order-1 lg:order-2 flex flex-col gap-4">
+                <div class="bg-[#0f0f11]/90 rounded-lg overflow-hidden border border-neutral-800/50 shadow-lg pb-6 min-h-[500px] backdrop-blur-sm">
+                    <div class="bg-neutral-800/60 py-3 text-center text-white font-medium border-b border-neutral-700/50 mb-4 flex justify-between items-center px-4">
+                        <span></span>
+                        <span class="font-medium text-lg">ดูรายงานผล</span>
+                        <span class="text-xs text-brand-yellow bg-yellow-900/30 px-2 py-1 rounded border border-yellow-700/50" id="reportCountBadge">พบ 0 รายการ</span>
+                    </div>
+                    
+                    <div class="px-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="cardsContainer">
+                        <div class="col-span-full flex justify-center py-20">
+                            <i class="fa-solid fa-spinner fa-spin text-3xl text-brand-yellow"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global Comments Section -->
+                <div class="bg-[#0f0f11]/90 rounded-lg overflow-hidden border border-neutral-800/50 shadow-lg p-4 mt-2 mb-8 backdrop-blur-sm">
+                    <h3 class="text-white font-bold mb-4 flex items-center gap-2 border-b border-neutral-800 pb-2"><i class="fa-regular fa-comments text-brand-yellow"></i> ความคิดเห็นเว็บไซต์ (แสดงความคิดเห็นที่นี่)</h3>
+                    <div id="globalCommentsList" class="flex flex-col gap-3 mb-4 max-h-[300px] overflow-y-auto pr-2">
+                        <div class="text-center text-gray-500 text-sm py-4">กำลังโหลดความคิดเห็น...</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="globalCommentInput" placeholder="พิมพ์ความคิดเห็น หรือ ให้กำลังใจผู้สอน..." class="flex-grow bg-[#1a1a1c] border border-neutral-700 rounded-full px-4 py-2 text-sm text-white focus:outline-none focus:border-brand-yellow transition">
+                        <button onclick="submitGlobalComment()" id="submitCommentBtn" class="bg-brand-yellow text-black px-5 py-2 rounded-full font-bold hover:bg-yellow-400 transition flex items-center justify-center min-w-[80px]">
+                            <i class="fa-solid fa-paper-plane mr-1"></i> ส่ง
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Sidebar -->
+            <aside class="w-full lg:w-1/4 xl:w-1/5 order-3 flex flex-col gap-4">
+                <div class="bg-[#0f0f11]/90 rounded-lg overflow-hidden border border-neutral-800/50 shadow-lg backdrop-blur-sm">
+                    <div class="bg-neutral-800/60 py-3 text-center text-white font-medium border-b border-neutral-700/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-building-columns text-brand-yellow"></i> สังกัดศูนย์อำนวยการ
+                    </div>
+                    <ul class="flex flex-col py-2 max-h-[300px] overflow-y-auto" id="centerList">
+                        <div class="text-center text-gray-500 text-xs py-4">กำลังโหลด...</div>
+                    </ul>
+                </div>
+
+                <div class="bg-[#0f0f11]/90 rounded-lg overflow-hidden border border-neutral-800/50 shadow-lg mt-2 lg:mt-0 backdrop-blur-sm">
+                    <div class="bg-neutral-800/60 py-3 text-center text-white font-medium border-b border-neutral-700/50 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trophy text-brand-yellow"></i> 10 อันดับ ผู้เข้าชมสูงสุด
+                    </div>
+                    <ul class="flex flex-col py-1 max-h-[500px] overflow-y-auto" id="topList">
+                         <div class="text-center text-gray-500 text-xs py-4">ไม่มีข้อมูล...</div>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <!-- Survey View -->
+    <main id="surveyView" class="flex-grow z-0 relative py-6 hidden no-print">
+        <div class="max-w-[1200px] mx-auto p-4 lg:p-6">
+            
+            <div class="bg-white rounded-lg border border-neutral-800/50 shadow-xl overflow-hidden min-h-[700px] flex flex-col" id="surveyPrintArea">
+                <div class="bg-neutral-800/90 p-4 border-b border-neutral-700/50 flex gap-4 overflow-x-auto whitespace-nowrap items-center justify-between no-print backdrop-blur-md">
+                    <div class="flex gap-4">
+                        <button id="tabDashBtn" class="bg-brand-yellow text-black font-bold px-6 py-2 rounded-md transition text-sm flex items-center gap-2"><i class="fa-solid fa-chart-pie"></i> แดชบอร์ดสรุปผล</button>
+                        <button id="tabReportBtn" class="bg-neutral-700 text-gray-300 hover:text-white hover:bg-neutral-600 font-medium px-6 py-2 rounded-md transition text-sm flex items-center gap-2"><i class="fa-solid fa-file-lines"></i> ข้อมูลรายงานผล (A4)</button>
+                    </div>
+                    <button onclick="downloadSurveyReport()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2 rounded-md transition text-xs flex items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-download"></i> ดาวน์โหลดรูปภาพ
+                    </button>
+                </div>
+
+                <!-- Dashboard Tab -->
+                <div id="surveyDashboard" class="p-6 flex-grow flex flex-col bg-white rounded-b-lg text-black">
+                    <div class="text-center mb-6 border-b border-gray-200 pb-4">
+                        <h2 class="text-2xl font-bold text-gray-900">แดชบอร์ดวิเคราะห์ผลการสำรวจ (Executive Summary)</h2>
+                        <p class="text-gray-600 mt-1">สรุปข้อมูลสภาพปัจจุบันและปัญหาการจัดการเรียนการสอน</p>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center shadow-sm">
+                            <div class="text-xs text-blue-600 font-bold mb-1">ผู้ตอบแบบสำรวจทั้งหมด</div>
+                            <div class="text-2xl font-black text-gray-900" id="statSvyTotal">0 รูป</div>
+                        </div>
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center shadow-sm">
+                            <div class="text-xs text-green-600 font-bold mb-1">ร้อยละความต้องการสูงสุด</div>
+                            <div class="text-2xl font-black text-gray-900" id="statSvyPct">0%</div>
+                        </div>
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center shadow-sm">
+                            <div class="text-xs text-purple-600 font-bold mb-1">สมรรถนะที่ต้องการมากที่สุด</div>
+                            <div class="text-sm font-bold text-gray-900 h-8 flex items-center justify-center leading-tight line-clamp-2" id="statSvyMode">-</div>
+                        </div>
+                        <div class="bg-pink-50 border border-pink-200 rounded-lg p-4 text-center shadow-sm">
+                            <div class="text-xs text-pink-600 font-bold mb-1">แปลผลความเร่งด่วน</div>
+                            <div class="text-xl font-black text-pink-700" id="statSvyInterpret">-</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 flex flex-col justify-center items-center gap-3 shadow-sm h-64">
+                            <h4 class="text-sm text-gray-800 font-bold border-b border-gray-300 pb-1 mb-1 w-full text-center">พรรษาของผู้สอน</h4>
+                            <div class="w-full h-full relative"><canvas id="phansaChart"></canvas></div>
+                        </div>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 flex flex-col justify-center items-center gap-3 shadow-sm h-64">
+                            <h4 class="text-sm text-gray-800 font-bold border-b border-gray-300 pb-1 mb-1 w-full text-center">ประสบการณ์การสอน</h4>
+                            <div class="w-full h-full relative"><canvas id="expChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 flex-grow shadow-sm mb-8">
+                        <h3 class="text-gray-900 font-bold mb-4 flex items-center gap-2 text-lg"><i class="fa-solid fa-chart-bar text-blue-600"></i> ความต้องการพัฒนาสมรรถนะการสอน 5 อันดับแรก</h3>
+                        <div class="w-full h-80 relative"><canvas id="competencyChart"></canvas></div>
+                    </div>
+
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mt-4">
+                        <div class="bg-gray-100 px-4 py-3 border-b border-gray-200">
+                            <h3 class="text-gray-800 font-bold text-sm"><i class="fa-solid fa-table list"></i> ตารางข้อมูลผลการสำรวจทั้งหมด</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-gray-700 whitespace-nowrap">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-4 py-2 font-bold w-10 text-center">ลำดับ</th>
+                                        <th class="px-4 py-2 font-bold">ชื่อ/ฉายา</th>
+                                        <th class="px-4 py-2 font-bold">จังหวัด</th>
+                                        <th class="px-4 py-2 font-bold">พรรษา</th>
+                                        <th class="px-4 py-2 font-bold">ประสบการณ์</th>
+                                        <th class="px-4 py-2 font-bold">สมรรถนะที่ต้องการพัฒนามากที่สุด</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="svyDashTbody" class="divide-y divide-gray-100">
+                                    <tr><td colspan="6" class="text-center py-8 text-gray-500">กำลังโหลดข้อมูล...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A4 Survey Report Tab -->
+                <div id="surveyA4Report" class="p-6 flex-grow hidden bg-gray-200 flex justify-center">
+                    <div class="report-page text-black font-sarabun flex flex-col bg-white border border-gray-300 overflow-hidden relative shadow-lg" id="a4SvyPaper" style="width: 210mm; min-height: 297mm; padding: 15mm; box-sizing: border-box; background: white;">
+                        
+                        <div class="text-center mb-6 border-b-2 border-pink-700 pb-4">
+                            <h1 style="font-size: 20pt; font-weight: bold; color: #831843; line-height: 1.2;">รายงานสรุปผลและอภิปรายผลการสำรวจ</h1>
+                            <h2 style="font-size: 16pt; font-weight: bold; color: #9d174d; margin-top: 4px;">สภาพปัจจุบัน และปัญหาการจัดการเรียนการสอนพระพุทธศาสนา</h2>
+                            <p style="font-size: 14pt; margin-top: 6px;">ของพระสอนศีลธรรมในโรงเรียน ปีงบประมาณ <span id="a4s_yearLabel">-</span></p>
+                        </div>
+
+                        <div class="space-y-6 text-[14pt] leading-relaxed">
+                            <div>
+                                <h3 class="font-bold text-[15pt] bg-pink-50 border-l-4 border-pink-700 pl-3 py-1 mb-3">๑. สรุปผลการสำรวจข้อมูลพื้นฐาน</h3>
+                                <p class="indent-8">จากการสำรวจพระสอนศีลธรรมในโรงเรียน จำนวนทั้งสิ้น <span id="a4s_total" class="font-bold">-</span> รูป พบว่าส่วนใหญ่มีประสบการณ์ในการสอนศีลธรรมในสถานศึกษาอยู่ในเกณฑ์ <span id="a4s_topExp" class="font-bold text-pink-700">-</span></p>
+                                <p class="indent-8 mt-2">สำหรับปัญหาและความต้องการในการพัฒนาสมรรถนะการจัดการเรียนรู้พระพุทธศาสนาในศตวรรษที่ ๒๑ พบว่า สมรรถนะที่ผู้ตอบแบบสอบถามต้องการพัฒนาตนเองมากที่สุดเป็นอันดับหนึ่ง คือ <span id="a4s_topComp" class="font-bold text-pink-700">-</span> คิดเป็นร้อยละ <span id="a4s_pct" class="font-bold">-</span></p>
+                                
+                                <div class="mt-4 border border-gray-300 rounded-sm overflow-hidden text-[12pt]">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead class="bg-gray-100">
+                                            <tr>
+                                                <th class="border-b border-gray-300 px-3 py-2 font-bold w-12 text-center">อันดับ</th>
+                                                <th class="border-b border-gray-300 px-3 py-2 font-bold">สมรรถนะที่ต้องการพัฒนามากที่สุด (๕ อันดับแรก)</th>
+                                                <th class="border-b border-gray-300 px-3 py-2 font-bold text-center w-24">จำนวน (รูป)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="a4s_topTable" class="divide-y divide-gray-200">
+                                            <tr><td colspan="3" class="text-center py-4 text-gray-500">ไม่มีข้อมูล</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-[15pt] bg-pink-50 border-l-4 border-pink-700 pl-3 py-1 mb-3">๒. อภิปรายผลการสำรวจ</h3>
+                                <p class="indent-8 text-justify" id="a4s_discuss">
+                                    จากผลการสำรวจวิเคราะห์ได้ว่า พระสอนศีลธรรมมีความต้องการในการพัฒนาตนเองอย่างเร่งด่วน ซึ่งสะท้อนให้เห็นถึงความจำเป็นในการปรับตัวต่อการจัดการเรียนการสอนในสภาพแวดล้อมและบริบทของนักเรียนยุคปัจจุบัน นอกจากนี้ผู้สอนส่วนใหญ่มีประสบการณ์สอนมาระดับหนึ่ง จึงควรนำข้อมูลนี้มาออกแบบหลักสูตรให้สอดคล้องกับระดับความเชี่ยวชาญต่อไป
+                                </p>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-[15pt] bg-pink-50 border-l-4 border-pink-700 pl-3 py-1 mb-3">๓. สรุปแนวทางการดำเนินการพัฒนา</h3>
+                                <p class="indent-8 mb-2">เพื่อให้การแก้ปัญหาเป็นไปอย่างมีประสิทธิภาพ จึงเสนอแนวทางการดำเนินการพัฒนา ดังนี้</p>
+                                <ul class="list-none space-y-2 pl-4">
+                                    <li class="flex gap-2"><span class="font-bold">๓.๑</span> <span id="a4s_guide1">-</span></li>
+                                    <li class="flex gap-2"><span class="font-bold">๓.๒</span> <span>ส่งเสริมการสร้างเครือข่ายชุมชนแห่งการเรียนรู้ทางวิชาชีพ (PLC) ระหว่างพระสอนศีลธรรม เพื่อแลกเปลี่ยนเทคนิคการสอนร่วมกัน</span></li>
+                                    <li class="flex gap-2"><span class="font-bold">๓.๓</span> <span>จัดทำคู่มือหรือสื่อการสอนสำเร็จรูปที่ทันสมัย (Digital Assets) เพื่อสนับสนุนการสอนในห้องเรียนให้มีความน่าสนใจยิ่งขึ้น</span></li>
+                                    <li class="flex gap-2"><span class="font-bold">๓.๔</span> <span>กำหนดระบบการนิเทศติดตามและประเมินผลอย่างต่อเนื่อง เพื่อให้การนำความรู้ไปใช้ในห้องเรียนเกิดผลสัมฤทธิ์อย่างเป็นรูปธรรม</span></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="mt-auto pt-10 flex justify-end">
+                            <div class="text-center" style="font-size: 14pt;">
+                                <p>จัดทำรายงานโดย</p>
+                                <p class="mt-6">...................................................................</p>
+                                <p class="mt-2">( ระบบรายงานผลส่วนกลาง )</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- A4 Report SPA View (Shown when a card is clicked) -->
+    <div id="a4ReportModal" class="w-full h-full bg-gray-200 hidden flex-col z-[200] fixed top-0 left-0 overflow-y-auto">
+        <div class="sticky top-0 right-0 p-3 w-full flex justify-between sm:justify-end gap-3 z-[210] no-print bg-white border-b border-gray-300 shadow-md">
+            <div class="flex items-center gap-1 bg-gray-100 rounded-md px-1 border border-gray-200 mr-auto sm:mr-4">
+                <button onclick="zoomOut()" class="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-200 rounded-md transition"><i class="fa-solid fa-minus"></i></button>
+                <span id="zoomLevelDisplay" class="text-sm font-medium w-12 text-center text-gray-800">100%</span>
+                <button onclick="zoomIn()" class="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-200 rounded-md transition"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <button onclick="downloadA4Image()" class="bg-blue-600 hover:bg-blue-700 text-white font-sans text-sm font-medium px-5 py-2.5 rounded-md flex items-center gap-2 transition shadow-sm">
+                <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">ดาวน์โหลดรูปภาพ</span>
+            </button>
+            <button onclick="closeA4Report()" class="bg-gray-800 hover:bg-gray-900 text-white font-sans text-sm font-medium px-5 py-2.5 rounded-md flex items-center gap-2 transition shadow-sm">
+                <i class="fa-solid fa-xmark"></i> <span class="hidden sm:inline">ปิด / กลับ</span>
+            </button>
+        </div>
+
+        <div class="flex justify-center p-4 w-full relative no-print-bg bg-gray-200 min-h-max" style="padding-bottom: 50px;">
+            <div id="a4Paper" class="report-page text-black font-sarabun bg-white shadow-xl relative overflow-hidden flex flex-col origin-top transition-transform duration-200" style="width: 210mm; min-height: 297mm; padding: 5mm; box-sizing: border-box;">
+
+                <div class="text-center mb-2 bg-gradient-to-r from-rose-700 to-pink-600 py-3 px-4 rounded-t border-b-4 border-rose-800 shadow-sm text-white w-full">
+                    <h1 style="font-size: 18pt; font-weight: bold; line-height: 1.2;">รายงานผลการปฏิบัติการสอนและการนิเทศออนไลน์</h1>
+                    <h2 style="font-size: 14pt; font-weight: bold; line-height: 1.2; margin-top: 2px;">พระสอนศีลธรรมในโรงเรียน</h2>
+                    <p style="font-size: 12pt; line-height: 1.2; margin-top: 4px; color: #ffe4e6;">ปีการศึกษา <span id="a4_year">----</span> ภาคเรียนที่ <span id="a4_term">-</span></p>
+                </div>
+
+                <div class="mb-2 w-full">
+                    <div class="font-bold text-rose-700 border-b-2 border-rose-700 mb-2 pb-1" style="font-size: 13pt;">ส่วนที่ 1 ข้อมูลทั่วไป</div>
+                    <div class="flex gap-4 w-full" style="font-size: 11pt; line-height: 1.25;">
+                        <div class="flex-grow w-3/4">
+                            <table class="w-full text-left border-collapse table-fixed">
+                                <tbody>
+                                    <tr><td class="font-bold w-[28%] align-top py-0.5">ชื่อ/ฉายา-นามสกุล:</td><td class="align-top py-0.5"><span id="a4_name">-</span> <span id="a4_lastname"></span></td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">โรงเรียนที่สอน:</td><td class="align-top py-0.5 truncate"><span id="a4_school">-</span></td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">ที่ตั้ง:</td><td class="align-top py-0.5 truncate">ต.<span id="a4_subdistrict">-</span> อ.<span id="a4_district">-</span> จ.<span id="a4_province">-</span></td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">สังกัดศูนย์:</td><td class="align-top py-0.5 truncate"><span id="a4_center">-</span></td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">วันที่ปฏิบัติการสอน:</td><td class="align-top py-0.5"><span id="a4_date">-</span> (สัปดาห์ละ <span id="a4_hours">-</span> ชม.)</td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">ระดับชั้น/นักเรียน:</td><td class="align-top py-0.5"><span id="a4_level">-</span> / <span id="a4_students">-</span> คน</td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">ครูพี่เลี้ยง/ผอ.:</td><td class="align-top py-0.5"><span id="a4_mentor">-</span> / <span id="a4_director">-</span></td></tr>
+                                    <tr><td class="font-bold align-top py-0.5">เบอร์โทร:</td><td class="align-top py-0.5"><span id="a4_phone">-</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="w-1/4 flex-shrink-0 flex items-center justify-center p-1 border border-gray-300 rounded shadow-sm bg-gray-50 min-h-[35mm]">
+                            <img id="a4_profileImg" src="" alt="Profile" class="max-w-full max-h-[45mm] object-contain bg-white hidden">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-t border-dashed border-gray-300 my-1">
+
+                <div class="mb-2 w-full flex-grow-0">
+                    <div class="font-bold text-rose-700 border-b-2 border-rose-700 mb-2 pb-1" style="font-size: 13pt;">ส่วนที่ 2 ภาพหลักฐานการสอน</div>
+                    <div id="a4_evidenceGrid" class="grid grid-cols-2 gap-2"></div>
+                </div>
+
+                <hr class="border-t border-dashed border-gray-300 my-1">
+
+                <div class="mb-1 w-full flex-grow flex flex-col">
+                    <div class="font-bold text-rose-700 border-b-2 border-rose-700 mb-2 pb-1" style="font-size: 13pt;">ส่วนที่ 3 การสะท้อนคิดและการนำผลไปพัฒนา</div>
+                    
+                    <div style="font-size: 11.5pt; line-height: 1.3;" class="mb-2">
+                        <strong class="text-rose-800">เนื้อหากิจกรรม:</strong> 
+                        <span id="a4_activity" class="text-gray-900">-</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3" style="line-height: 1.3;">
+                        <div class="border border-gray-300 p-2 rounded bg-gray-50 flex flex-col">
+                            <span class="text-[10pt] text-gray-500 font-bold mb-1 border-b border-gray-200 pb-0.5">1. สิ่งที่ทำได้ดีและเหตุผล</span>
+                            <span id="a4_good" class="text-[11pt] text-gray-900 font-medium flex-grow whitespace-pre-wrap">-</span>
+                        </div>
+                        <div class="border border-gray-300 p-2 rounded bg-gray-50 flex flex-col">
+                            <span class="text-[10pt] text-gray-500 font-bold mb-1 border-b border-gray-200 pb-0.5">2. สิ่งที่ควรปรับปรุง/เหตุผล</span>
+                            <span id="a4_improve" class="text-[11pt] text-gray-900 font-medium flex-grow whitespace-pre-wrap">-</span>
+                        </div>
+                        <div class="border border-gray-300 p-2 rounded bg-gray-50 flex flex-col">
+                            <span class="text-[10pt] text-gray-500 font-bold mb-1 border-b border-gray-200 pb-0.5">3. แนวทางพัฒนาการสอน</span>
+                            <span id="a4_develop" class="text-[11pt] text-gray-900 font-medium flex-grow whitespace-pre-wrap">-</span>
+                        </div>
+                        <div class="border border-gray-300 p-2 rounded bg-gray-50 flex flex-col">
+                            <span class="text-[10pt] text-gray-500 font-bold mb-1 border-b border-gray-200 pb-0.5">4. ผลการเปลี่ยนแปลงนักเรียน</span>
+                            <span id="a4_impact" class="text-[11pt] text-gray-900 font-medium flex-grow whitespace-pre-wrap">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between mt-6 pt-2 px-[10mm] pb-1 w-full" style="font-size: 11pt;">
+                    <div class="text-center relative">
+                        <div class="relative inline-block">
+                            <p>(ลงชื่อ)........................................................ผู้รายงาน</p>
+                        </div>
+                        <p class="mt-1">( <span id="a4_sign_name" class="px-2 border-b border-dotted border-black min-w-[140px] inline-block text-center font-medium">-</span> )</p>
+                        <p class="mt-1 font-medium text-gray-800">พระสอนศีลธรรม</p>
+                    </div>
+                    <div class="text-center relative">
+                        <div class="relative inline-block">
+                            <p>(ลงชื่อ)........................................................รับรอง</p>
+                        </div>
+                        <p class="mt-1">( <span id="a4_sign_mentor" class="px-2 border-b border-dotted border-black min-w-[140px] inline-block text-center font-medium">-</span> )</p>
+                        <p class="mt-1 font-medium text-gray-800">ครูพี่เลี้ยง/ผอ.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal สำหรับดูรูปภาพขนาดใหญ่ -->
+    <div id="imageLightbox" class="fixed inset-0 bg-black/90 z-[9999] hidden flex items-center justify-center p-4 transition-opacity" onclick="closeLightbox()">
+        <button class="absolute top-4 right-4 text-white text-4xl hover:text-gray-300 drop-shadow-md cursor-pointer">&times;</button>
+        <img id="lightboxImg" src="" class="max-w-full max-h-full object-contain rounded shadow-2xl border-2 border-white/20">
+    </div>
+
+    <div id="toastMsg" class="toast">ดำเนินการสำเร็จ</div>
+
+    <footer class="border-t border-neutral-800/50 bg-[#020617]/80 backdrop-blur-md py-6 z-0 no-print">
+        <div class="max-w-[1600px] mx-auto px-4 text-center text-sm text-neutral-500">
+            &copy; 2026 ดูรายงานการสอนออนไลน์ - สงวนลิขสิทธิ์
+        </div>
+    </footer>
+
+    <script type="module">
+        window.openLightbox = function(src) {
+            document.getElementById('lightboxImg').src = src;
+            document.getElementById('imageLightbox').classList.remove('hidden');
+        };
+        window.closeLightbox = function() {
+            document.getElementById('imageLightbox').classList.add('hidden');
+        };
+
+        let currentA4Scale = 1.0;
+        
+        window.zoomIn = function() {
+            if(currentA4Scale < 2.0) { currentA4Scale += 0.1; updateA4Zoom(); }
+        }
+        
+        window.zoomOut = function() {
+            if(currentA4Scale > 0.4) { currentA4Scale -= 0.1; updateA4Zoom(); }
+        }
+        
+        window.updateA4Zoom = function() {
+            const paper = document.getElementById('a4Paper');
+            paper.style.transform = `scale(${currentA4Scale})`;
+            document.getElementById('zoomLevelDisplay').innerText = Math.round(currentA4Scale * 100) + '%';
+            
+            const extraHeight = (paper.offsetHeight * currentA4Scale) - paper.offsetHeight;
+            if(extraHeight > 0) {
+                paper.style.marginBottom = `${extraHeight + 40}px`;
+            } else {
+                paper.style.marginBottom = '0px';
+            }
+        }
+
+        const mainView = document.getElementById('mainView');
+        const surveyView = document.getElementById('surveyView');
+        const filterBar = document.getElementById('filterBar');
+        const btnDashboard = document.getElementById('navDashboardBtn');
+        const btnSurvey = document.getElementById('navSurveyBtn');
+        const btnForm = document.getElementById('openFormBtn');
+        const dropdown = document.getElementById('formDropdown');
+
+        function showMainView() {
+            surveyView.classList.add('hidden');
+            mainView.classList.remove('hidden');
+            btnDashboard.classList.add('hidden');
+            btnSurvey.classList.remove('hidden');
+            btnForm.classList.remove('hidden');
+            filterBar.classList.remove('hidden');
+            if(dropdown.style.maxHeight && dropdown.style.maxHeight !== '0px') toggleForm();
+            renderDashboard();
+        }
+
+        function showSurveyView() {
+            mainView.classList.add('hidden');
+            surveyView.classList.remove('hidden');
+            btnSurvey.classList.add('hidden');
+            btnDashboard.classList.remove('hidden');
+            btnForm.classList.add('hidden');
+            filterBar.classList.remove('hidden');
+            if(dropdown.style.maxHeight && dropdown.style.maxHeight !== '0px') toggleForm();
+            renderSurvey();
+        }
+
+        btnDashboard.addEventListener('click', showMainView);
+        btnSurvey.addEventListener('click', showSurveyView);
+
+        // Survey Tabs
+        const tabDashBtn = document.getElementById('tabDashBtn');
+        const tabReportBtn = document.getElementById('tabReportBtn');
+        const surveyDash = document.getElementById('surveyDashboard');
+        const surveyA4 = document.getElementById('surveyA4Report');
+
+        let currentSurveyTab = 'dash';
+
+        tabDashBtn.addEventListener('click', () => {
+            currentSurveyTab = 'dash';
+            surveyDash.classList.remove('hidden');
+            surveyA4.classList.add('hidden');
+            tabDashBtn.className = 'bg-brand-yellow text-black font-bold px-6 py-2 rounded-md transition text-sm flex items-center gap-2';
+            tabReportBtn.className = 'bg-neutral-700 text-gray-300 hover:text-white hover:bg-neutral-600 font-medium px-6 py-2 rounded-md transition text-sm flex items-center gap-2';
+        });
+
+        tabReportBtn.addEventListener('click', () => {
+            currentSurveyTab = 'a4';
+            surveyA4.classList.remove('hidden');
+            surveyDash.classList.add('hidden');
+            tabReportBtn.className = 'bg-brand-yellow text-black font-bold px-6 py-2 rounded-md transition text-sm flex items-center gap-2';
+            tabDashBtn.className = 'bg-neutral-700 text-gray-300 hover:text-white hover:bg-neutral-600 font-medium px-6 py-2 rounded-md transition text-sm flex items-center gap-2';
+        });
+
+        // Form Toggle
+        const closeBtn = document.getElementById('closeFormInnerBtn');
+        const cancelBtn = document.getElementById('cancelFormBtn');
+        
+        function toggleForm() {
+            if(dropdown.style.maxHeight && dropdown.style.maxHeight !== '0px') {
+                dropdown.style.maxHeight = '0px';
+                setTimeout(() => dropdown.style.borderTopWidth = '0px', 700);
+            } else {
+                dropdown.style.borderTopWidth = '1px';
+                dropdown.style.maxHeight = '15000px'; 
+            }
+        }
+        
+        btnForm.addEventListener('click', toggleForm);
+        closeBtn.addEventListener('click', toggleForm);
+        cancelBtn.addEventListener('click', toggleForm);
+
+        function setupPreview(inputId, previewId, placeholderId) {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            const placeholder = document.getElementById(placeholderId);
+            if(input) {
+                input.addEventListener('change', function(e) {
+                    if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = function(evt) {
+                            preview.src = evt.target.result;
+                            preview.classList.remove('hidden');
+                            placeholder.classList.add('hidden');
+                        }
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                });
+            }
+        }
+        setupPreview('f_profile', 'profilePicPreview', 'profilePicPlaceholder');
+        setupPreview('f_ev1', 'ev1Preview', 'ev1Placeholder');
+        setupPreview('f_ev2', 'ev2Preview', 'ev2Placeholder');
+        setupPreview('f_ev3', 'ev3Preview', 'ev3Placeholder');
+        setupPreview('f_ev4', 'ev4Preview', 'ev4Placeholder');
+
+        window.showToast = function(msg) {
+            const toast = document.getElementById('toastMsg');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // ==========================================
+        // การตั้งค่า Google Apps Script
+        // ==========================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZYx_2wS8GpFlEvZ-M0SEDFmi5mYypY0EAieFuDIDJbhM0GsICBuQl5ydZNbSIKS5G/exec';
+
+        let allReports = [];
+        let allComments = [];
+        let currentFilterYear = 'all';
+        let currentFilterProvince = 'all';
+        let currentFilterCenter = 'all';
+        let myChartPhansa = null;
+        let myChartExp = null;
+        let myChartComp = null;
+
+        function compressImage(file, maxWidth = 800, quality = 0.7) {
+            return new Promise((resolve) => {
+                if(!file) return resolve("");
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const scale = Math.min(maxWidth / img.width, 1);
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    }
+                }
+            });
+        }
+
+        function extractFileData(dataUrl, filename) {
+            if (!dataUrl) return null;
+            const parts = dataUrl.split(',');
+            const match = parts[0].match(/:(.*?);/);
+            const mimeType = match ? match[1] : 'image/jpeg';
+            const base64 = parts[1];
+            return { filename, mimeType, base64 };
+        }
+
+        async function loadData() {
+            try {
+                if(!SCRIPT_URL || SCRIPT_URL.includes('xxx')) return;
+                
+                const response = await fetch(SCRIPT_URL + '?action=getReports');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const buildUrl = (id) => id ? `https://lh3.googleusercontent.com/d/${id}` : '';
+                    
+                    const reportsData = Array.isArray(result.data) ? result.data : (result.data.reports || []);
+                    
+                    allReports = reportsData.map(r => ({
+                        ...r,
+                        profileImg: buildUrl(r.profileImgId),
+                        ev1: buildUrl(r.ev1Id),
+                        ev2: buildUrl(r.ev2Id),
+                        ev3: buildUrl(r.ev3Id),
+                        ev4: buildUrl(r.ev4Id),
+                        views: Number(r.views) || 0,
+                        likes: Number(r.likes) || 0,
+                        createdAt: Number(r.createdAt) || 0
+                    })).sort((a, b) => b.createdAt - a.createdAt);
+
+                    allComments = Array.isArray(result.data) ? [] : (result.data.comments || []);
+                    allComments.sort((a, b) => a.createdAt - b.createdAt);
+
+                    // สร้างตัวเลือกปีงบประมาณจากข้อมูลจริงใน Google Sheet
+                    const uniqueYears = [...new Set(allReports.map(r => String(r.year)).filter(y => y && y !== 'undefined'))].sort((a, b) => b - a);
+                    const filterSelect = document.getElementById('filterYear');
+                    const currentVal = filterSelect.value;
+                    let optionsHtml = `<option value="all" ${currentVal === 'all' ? 'selected' : ''}>-- ทั้งหมด --</option>`;
+                    uniqueYears.forEach(year => {
+                        optionsHtml += `<option value="${year}" ${currentVal === year ? 'selected' : ''}>${year}</option>`;
+                    });
+                    filterSelect.innerHTML = optionsHtml;
+                    currentFilterYear = filterSelect.value;
+                    document.getElementById('statYearLabel').innerText = currentFilterYear === 'all' ? 'ทั้งหมด' : currentFilterYear;
+
+                    if(!document.getElementById('surveyView').classList.contains('hidden')) {
+                        renderSurvey();
+                    } else {
+                        renderDashboard();
+                    }
+                    renderGlobalComments();
+                }
+            } catch (err) {
+                console.error('Error loading data:', err);
+                showToast('ไม่สามารถโหลดข้อมูลจากเซิร์ฟเวอร์ได้');
+            }
+        }
+
+        document.getElementById('supervisionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = document.getElementById('submitFormBtn');
+            submitBtn.disabled = true;
+
+            Swal.fire({
+                title: 'กำลังบันทึกข้อมูล...',
+                text: 'โปรดรอสักครู่ ระบบกำลังอัปโหลดไฟล์และบันทึกลงฐานข้อมูล',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const name = document.getElementById('f_name').value;
+                const profileStr = await compressImage(document.getElementById('f_profile').files[0]);
+                const ev1Str = await compressImage(document.getElementById('f_ev1').files[0]);
+                const ev2Str = await compressImage(document.getElementById('f_ev2').files[0]);
+                const ev3Str = await compressImage(document.getElementById('f_ev3').files[0]);
+                const ev4Str = await compressImage(document.getElementById('f_ev4').files[0]);
+
+                let p1_center = document.getElementById('f_center').value;
+                if(p1_center === 'อื่นๆ โปรดระบุ') p1_center = document.getElementById('f_center_other').value;
+
+                let s_center = document.getElementById('s_center').value || '-';
+                if(s_center === 'อื่นๆ โปรดระบุ') s_center = document.getElementById('s_center_other').value;
+
+                const payload = {
+                    action: 'saveReport',
+                    data: {
+                        year: document.getElementById('f_year').value,
+                        term: document.getElementById('f_term').value,
+                        date: document.getElementById('f_date').value,
+                        name: name,
+                        lastname: document.getElementById('f_lastname').value,
+                        school: document.getElementById('f_school').value,
+                        subdistrict: document.getElementById('f_subdistrict').value,
+                        district: document.getElementById('f_district').value,
+                        province: document.getElementById('f_province').value,
+                        center: p1_center,
+                        hours: document.getElementById('f_hours').value,
+                        level: document.getElementById('f_level').value,
+                        students: document.getElementById('f_students').value,
+                        mentor: document.getElementById('f_mentor').value,
+                        director: document.getElementById('f_director').value,
+                        phone: document.getElementById('f_phone').value,
+                        activity: document.getElementById('f_activity').value,
+                        good: document.getElementById('f_good').value,
+                        improve: document.getElementById('f_improve').value,
+                        develop: document.getElementById('f_develop').value,
+                        impact: document.getElementById('f_impact').value,
+                        svy_phansa: document.getElementById('s_phansa').value || '-',
+                        svy_dhamma: document.getElementById('s_dhamma').value || '-',
+                        svy_pali: document.getElementById('s_pali').value || '-',
+                        svy_edu: document.getElementById('s_secular_edu').value || '-',
+                        svy_center: s_center,
+                        svy_province: document.getElementById('s_province').value || '-',
+                        svy_exp: document.getElementById('s_experience').value || '-',
+                        svy_level: document.getElementById('s_level').value || '-',
+                        svy_curriculum: document.getElementById('s_curriculum').value || '-',
+                        svy_competency: document.getElementById('s_competency').value || '-'
+                    },
+                    files: {
+                        profile: extractFileData(profileStr, `profile_${name}.jpg`),
+                        ev1: extractFileData(ev1Str, `ev1_${name}.jpg`),
+                        ev2: extractFileData(ev2Str, `ev2_${name}.jpg`),
+                        ev3: extractFileData(ev3Str, `ev3_${name}.jpg`),
+                        ev4: extractFileData(ev4Str, `ev4_${name}.jpg`)
+                    }
+                };
+
+                const params = new URLSearchParams();
+                params.append('payload', JSON.stringify(payload));
+
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'บันทึกสำเร็จ!',
+                        text: 'ข้อมูลของคุณถูกบันทึกเรียบร้อยแล้ว',
+                        confirmButtonColor: '#2563eb'
+                    });
+                    
+                    document.getElementById('supervisionForm').reset();
+                    document.querySelectorAll('img[id$="Preview"]').forEach(img => img.classList.add('hidden'));
+                    document.querySelectorAll('div[id$="Placeholder"]').forEach(div => div.classList.remove('hidden'));
+                    toggleForm();
+                    
+                    loadData();
+                } else {
+                    throw new Error(result.error || result.message || 'Unknown error');
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้ โปรดตรวจสอบการเชื่อมต่อและลองอีกครั้ง'
+                });
+            } finally {
+                submitBtn.disabled = false;
+            }
+        });
+
+        window.applyFilter = function() {
+            currentFilterYear = document.getElementById('filterYear').value;
+            currentFilterProvince = 'all';
+            currentFilterCenter = 'all';
+            document.getElementById('statYearLabel').innerText = currentFilterYear === 'all' ? 'ทั้งหมด' : currentFilterYear;
+            if(!surveyView.classList.contains('hidden')) renderSurvey();
+            else renderDashboard();
+        }
+
+        window.setProvinceFilter = function(province) {
+            currentFilterProvince = currentFilterProvince === province ? 'all' : province;
+            renderDashboard();
+        }
+
+        window.setCenterFilter = function(center) {
+            currentFilterCenter = currentFilterCenter === center ? 'all' : center;
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            const container = document.getElementById('cardsContainer');
+            let filtered = allReports;
+            
+            if(currentFilterYear !== 'all') filtered = allReports.filter(r => String(r.year) === String(currentFilterYear));
+            if(currentFilterProvince !== 'all') filtered = filtered.filter(r => r.province === currentFilterProvince);
+            if(currentFilterCenter !== 'all') filtered = filtered.filter(r => r.center === currentFilterCenter);
+
+            document.getElementById('reportCountBadge').innerText = `พบ ${filtered.length} รายการ`;
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full flex justify-center py-20 text-gray-500">ไม่มีข้อมูลรายงาน...</div>`;
+            } else {
+                container.innerHTML = filtered.map(report => `
+                    <div class="bg-[#141414]/90 rounded-lg border border-neutral-800 overflow-hidden hover:border-neutral-600 transition group relative flex flex-col h-full cursor-pointer backdrop-blur-sm" onclick="openA4Report('${report.id}')">
+                        <div class="aspect-[3/4] overflow-hidden relative bg-neutral-900">
+                            <img src="${report.profileImg || 'https://placehold.co/300x400/222/555?text=No+Image'}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
+                            <div class="absolute bottom-2 left-2 right-2"><h3 class="text-white font-medium text-sm line-clamp-1">${report.name} ${report.lastname}</h3></div>
+                            <div class="absolute top-2 right-2 bg-brand-yellow text-black text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-md">${report.year}</div>
+                        </div>
+                        <div class="p-3 flex-grow flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-start gap-2"><i class="fa-solid fa-location-dot text-brand-yellow text-[10px] mt-1 w-3 text-center"></i><p class="text-gray-300 text-xs line-clamp-1">${report.province}</p></div>
+                                <div class="flex items-start gap-2 mt-1"><i class="fa-solid fa-building-columns text-brand-yellow text-[10px] mt-1 w-3 text-center"></i><p class="text-gray-400 text-xs line-clamp-2">${report.center}</p></div>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-neutral-800 flex justify-between items-center text-gray-400">
+                                <span class="text-[10px] flex items-center gap-1.5"><i class="fa-solid fa-eye text-brand-yellow/70"></i> ${report.views || 0}</span>
+                                <span class="text-[10px] flex items-center gap-1.5" onclick="event.stopPropagation(); likeReport('${report.id}')"><i class="fa-solid fa-thumbs-up ${report.likes > 0 ? 'text-blue-500' : ''}"></i> ${report.likes || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            updateSidebars(filtered);
+        }
+
+        window.likeReport = async function(id) {
+            const r = allReports.find(x => x.id === id);
+            if(r) {
+                r.likes = (r.likes || 0) + 1;
+                renderDashboard();
+                
+                try {
+                    const params = new URLSearchParams();
+                    params.append('payload', JSON.stringify({ action: 'updateStats', id: id, field: 'likes' }));
+                    fetch(SCRIPT_URL, { method: 'POST', body: params, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }});
+                } catch(e){}
+            }
+        }
+
+        function updateSidebars(fullyFiltered = null) {
+            const now = new Date();
+            const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+            let viewsToday = 0;
+            let viewsWeek = 0;
+            let viewsMonth = 0;
+            let viewsYear = 0;
+            let viewsAll = 0;
+
+            // baseFiltered ใช้คำนวณยอดวิวและนับจำนวนจังหวัด/ศูนย์ (กรองแค่ปีงบประมาณ ไม่สนใจการกดเลือกจังหวัด)
+            let baseFiltered = allReports;
+            if(currentFilterYear !== 'all') {
+                baseFiltered = allReports.filter(r => String(r.year) === String(currentFilterYear));
+            }
+
+            // คำนวณยอดวิวรวมทั้งหมด (ไม่สนฟิลเตอร์)
+            allReports.forEach(r => {
+                viewsAll += (Number(r.views) || 0);
+            });
+
+            // คำนวณยอดวิวอื่นๆ ตามฟิลเตอร์ปีงบประมาณที่เลือก
+            baseFiltered.forEach(r => {
+                const v = Number(r.views) || 0;
+                const created = Number(r.createdAt) || 0;
+                
+                viewsYear += v;
+                
+                if (created >= startOfToday) viewsToday += v;
+                if (created >= startOfWeek) viewsWeek += v;
+                if (created >= startOfMonth) viewsMonth += v;
+            });
+
+            document.getElementById('statToday').innerText = viewsToday.toLocaleString(); 
+            document.getElementById('statWeek').innerText = viewsWeek.toLocaleString(); 
+            document.getElementById('statMonth').innerText = viewsMonth.toLocaleString(); 
+            document.getElementById('statYear').innerText = viewsYear.toLocaleString();
+            document.getElementById('statAll').innerText = viewsAll.toLocaleString();
+
+            const provMap = {};
+            baseFiltered.forEach(r => { provMap[r.province] = (provMap[r.province] || 0) + 1; });
+            const provHtml = Object.keys(provMap).sort((a,b)=>provMap[b]-provMap[a]).map(p => {
+                const isActive = currentFilterProvince === p;
+                const activeClasses = isActive ? "bg-neutral-800 border-l-2 border-brand-yellow" : "hover:bg-neutral-800/50";
+                const textClasses = isActive ? "text-brand-yellow font-bold" : "text-gray-400";
+                return `
+                <li class="px-4 py-2 flex justify-between items-center cursor-pointer transition ${activeClasses}" onclick="setProvinceFilter('${p}')">
+                    <span class="${textClasses} text-sm truncate">${p}</span>
+                    <span class="text-xs bg-neutral-800 text-gray-500 px-2 py-1 rounded">${provMap[p]}</span>
+                </li>`;
+            }).join('');
+            document.getElementById('provinceList').innerHTML = provHtml || `<div class="text-center text-gray-500 text-xs py-4">ไม่มีข้อมูล...</div>`;
+
+            const centerMap = {};
+            baseFiltered.forEach(r => { if(r.center) centerMap[r.center] = (centerMap[r.center] || 0) + 1; });
+            const centerHtml = Object.keys(centerMap).sort((a,b)=>centerMap[b]-centerMap[a]).map(c => {
+                const isActive = currentFilterCenter === c;
+                const activeClasses = isActive ? "bg-neutral-800 border-l-2 border-brand-yellow" : "hover:bg-neutral-800/50";
+                const textClasses = isActive ? "text-brand-yellow font-bold" : "text-gray-400";
+                return `
+                <li class="px-4 py-2 flex justify-between items-center cursor-pointer transition ${activeClasses}" onclick="setCenterFilter('${c}')">
+                    <span class="${textClasses} text-sm truncate" title="${c}">${c}</span>
+                    <span class="text-xs bg-neutral-800 text-gray-500 px-2 py-1 rounded shrink-0 ml-2">${centerMap[c]}</span>
+                </li>`;
+            }).join('');
+            document.getElementById('centerList').innerHTML = centerHtml || `<div class="text-center text-gray-500 text-xs py-4">ไม่มีข้อมูล...</div>`;
+
+            // Top 10 อ้างอิงจากข้อมูลที่ถูกกรองอย่างสมบูรณ์ (fullyFiltered)
+            const tops = [...(fullyFiltered || baseFiltered)].sort((a,b)=> (b.views||0) - (a.views||0)).slice(0,10);
+            const topHtml = tops.map((r, i) => `
+                <li class="px-4 py-3 flex items-center gap-3 border-b border-neutral-800/50 cursor-pointer hover:bg-neutral-700/80 transition" onclick="openA4Report('${r.id}')">
+                    <div class="text-brand-yellow font-bold text-sm w-4 text-center shrink-0">${i+1}</div>
+                    <img src="${r.profileImg || 'https://placehold.co/100'}" onerror="this.src='https://placehold.co/100'" class="w-10 h-10 rounded-full object-cover border border-neutral-600 shrink-0 bg-neutral-800">
+                    <div class="flex flex-col flex-grow overflow-hidden">
+                        <span class="text-gray-300 text-xs truncate font-medium">${r.name}</span>
+                        <span class="text-[9px] text-gray-400 truncate mt-0.5">${r.province} | ${r.center}</span>
+                        <div class="flex items-center gap-3 mt-1">
+                            <span class="text-[10px] text-gray-500"><i class="fa-solid fa-eye text-brand-yellow/70"></i> ${r.views||0}</span>
+                            <span class="text-[10px] text-gray-500"><i class="fa-solid fa-thumbs-up text-blue-500"></i> ${r.likes||0}</span>
+                        </div>
+                    </div>
+                </li>
+            `).join('');
+            document.getElementById('topList').innerHTML = topHtml || `<div class="text-center text-gray-500 text-xs py-4">ไม่มีข้อมูล...</div>`;
+        }
+
+        function renderGlobalComments() {
+            const list = document.getElementById('globalCommentsList');
+            if(allComments.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-500 text-sm py-4">ยังไม่มีความคิดเห็น มาเริ่มแสดงความคิดเห็นคนแรกกันเถอะ!</div>`;
+            } else {
+                list.innerHTML = allComments.map(c => `
+                    <div class="bg-neutral-800/80 p-3 rounded-lg text-sm text-gray-300 border border-neutral-700/50 backdrop-blur-sm">
+                        <div class="text-brand-yellow text-xs mb-1 font-medium"><i class="fa-solid fa-user-circle"></i> ผู้เยี่ยมชม <span class="text-[10px] text-gray-500 ml-2">${new Date(c.createdAt).toLocaleString('th-TH')}</span></div>
+                        <p class="leading-relaxed">${c.text}</p>
+                    </div>
+                `).join('');
+                list.scrollTop = list.scrollHeight;
+            }
+        }
+
+        window.submitGlobalComment = async function() {
+            const input = document.getElementById('globalCommentInput');
+            const btn = document.getElementById('submitCommentBtn');
+            const text = input.value.trim();
+            if(!text) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            const tempComment = { text: text, createdAt: Date.now() };
+            allComments.push(tempComment);
+            renderGlobalComments();
+            input.value = '';
+
+            try {
+                const params = new URLSearchParams();
+                params.append('payload', JSON.stringify({ action: 'saveComment', text: text }));
+                await fetch(SCRIPT_URL, { method: 'POST', body: params, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }});
+            } catch(e) {
+                console.error('Comment failed', e);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> ส่ง';
+            }
+        }
+
+        function renderSurvey() {
+            let filtered = allReports;
+            if(currentFilterYear !== 'all') filtered = allReports.filter(r => r.year == currentFilterYear);
+
+            const total = filtered.length;
+            
+            document.getElementById('svyDashTbody').innerHTML = filtered.length > 0 ? filtered.map((r, i) => `
+                <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                    <td class="px-4 py-2 text-center text-gray-500">${i+1}</td>
+                    <td class="px-4 py-2 font-medium">${r.name || '-'}</td>
+                    <td class="px-4 py-2 text-blue-600">${r.svy_province || '-'}</td>
+                    <td class="px-4 py-2">${r.svy_phansa || '-'}</td>
+                    <td class="px-4 py-2">${r.svy_exp || '-'}</td>
+                    <td class="px-4 py-2 text-xs truncate max-w-[200px]" title="${r.svy_competency}">${r.svy_competency || '-'}</td>
+                </tr>
+            `).join('') : `<tr><td colspan="6" class="text-center py-10 text-gray-500">ไม่มีข้อมูลในปีงบประมาณนี้</td></tr>`;
+
+            if (total === 0) {
+                document.getElementById('statSvyTotal').innerText = "0 รูป";
+                document.getElementById('statSvyPct').innerText = "0%";
+                document.getElementById('statSvyMode').innerText = "-";
+                document.getElementById('statSvyInterpret').innerText = "-";
+                
+                document.getElementById('a4s_yearLabel').innerText = currentFilterYear === 'all' ? 'ทั้งหมด' : currentFilterYear;
+                document.getElementById('a4s_total').innerText = '0';
+                document.getElementById('a4s_topExp').innerText = '-';
+                document.getElementById('a4s_topComp').innerText = '-';
+                document.getElementById('a4s_pct').innerText = '0';
+                document.getElementById('a4s_topTable').innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">ไม่มีข้อมูล</td></tr>`;
+                
+                if(myChartPhansa) myChartPhansa.destroy();
+                if(myChartExp) myChartExp.destroy();
+                if(myChartComp) myChartComp.destroy();
+                return;
+            }
+
+            const compPhansa = {}, compExp = {}, compCompFull = {}, compCompShort = {};
+            filtered.forEach(r => {
+                if(r.svy_phansa) compPhansa[r.svy_phansa] = (compPhansa[r.svy_phansa]||0) + 1;
+                if(r.svy_exp) compExp[r.svy_exp] = (compExp[r.svy_exp]||0) + 1;
+                if(r.svy_competency) {
+                    compCompFull[r.svy_competency] = (compCompFull[r.svy_competency]||0) + 1;
+                    
+                    let shortName = r.svy_competency.substring(0, 35) + '...';
+                    if(r.svy_competency.includes("การใช้สื่อ")) shortName = "การใช้สื่อและเทคโนโลยีดิจิทัล";
+                    else if(r.svy_competency.includes("วิธี")) shortName = "วิธีการจัดการเรียนรู้พระพุทธศาสนา";
+                    else if(r.svy_competency.includes("กิจกรรม")) shortName = "การพัฒนากิจกรรมการจัดการเรียนรู้";
+                    else if(r.svy_competency.includes("วัดและประเมิน")) shortName = "การวัดและประเมินผลนักเรียน";
+                    else if(r.svy_competency.includes("จิตวิทยา")) shortName = "การใช้จิตวิทยาเพื่อการเรียนรู้";
+                    else if(r.svy_competency.includes("สมรรถนะที่ ๗")) shortName = "ทักษะการสอนศีลธรรม";
+                    
+                    compCompShort[shortName] = (compCompShort[shortName]||0) + 1;
+                }
+            });
+
+            const sortedFullComps = Object.entries(compCompFull).sort((a,b) => b[1]-a[1]);
+            const topCompFull = sortedFullComps.length > 0 ? sortedFullComps[0][0] : "ไม่มีข้อมูล";
+            const maxCompCount = sortedFullComps.length > 0 ? sortedFullComps[0][1] : 0;
+            
+            let topExp = "ไม่มีข้อมูล"; let maxExpCount = 0;
+            for(let k in compExp) { if(compExp[k] > maxExpCount) { maxExpCount = compExp[k]; topExp = k; } }
+
+            let pct = ((maxCompCount / total) * 100).toFixed(2);
+            let interpret = "เร่งด่วน";
+            if (pct < 30) interpret = "กระจายตัว"; else if (pct < 50) interpret = "ควรให้ความสำคัญ";
+
+            document.getElementById('statSvyTotal').innerText = total + " รูป";
+            document.getElementById('statSvyPct').innerText = pct + "%";
+            document.getElementById('statSvyMode').innerText = topCompFull.substring(0, 40) + "...";
+            document.getElementById('statSvyMode').title = topCompFull;
+            document.getElementById('statSvyInterpret').innerText = interpret;
+
+            document.getElementById('a4s_yearLabel').innerText = currentFilterYear === 'all' ? 'ทั้งหมด' : currentFilterYear;
+            document.getElementById('a4s_total').innerText = total;
+            document.getElementById('a4s_topExp').innerText = topExp;
+            document.getElementById('a4s_topComp').innerText = topCompFull;
+            document.getElementById('a4s_pct').innerText = pct;
+            
+            document.getElementById('a4s_discuss').innerText = `จากผลการสำรวจในปีงบประมาณ ${currentFilterYear === 'all' ? 'ทั้งหมด' : currentFilterYear} วิเคราะห์ได้ว่า พระสอนศีลธรรมมีความต้องการในการพัฒนาตนเองในด้าน "${topCompFull}" มากเป็นอันดับหนึ่ง ซึ่งสะท้อนให้เห็นถึงความจำเป็นในการปรับตัวต่อการจัดการเรียนการสอนในสภาพแวดล้อมและบริบทของนักเรียนยุคปัจจุบัน (ศตวรรษที่ 21) นอกจากนี้ผู้สอนส่วนใหญ่มีประสบการณ์ ${topExp} จึงควรนำข้อมูลนี้มาออกแบบหลักสูตรฝึกอบรมให้มีความสอดคล้องกับระดับความเชี่ยวชาญเพื่อเพิ่มประสิทธิภาพการสอนศีลธรรมอย่างยั่งยืนต่อไป`;
+            document.getElementById('a4s_guide1').innerText = `จัดอบรมเชิงปฏิบัติการ (Workshop) และพัฒนาหลักสูตรเจาะลึกในหัวข้อ ${topCompFull} ให้แก่พระสอนศีลธรรม`;
+
+            const top5List = sortedFullComps.slice(0, 5);
+            document.getElementById('a4s_topTable').innerHTML = top5List.map((item, index) => `
+                <tr>
+                    <td class="px-3 py-2 text-center border-b border-gray-200">${index + 1}</td>
+                    <td class="px-3 py-2 border-b border-gray-200">${item[0]}</td>
+                    <td class="px-3 py-2 text-center border-b border-gray-200 font-bold">${item[1]}</td>
+                </tr>
+            `).join('');
+
+            if(myChartPhansa) myChartPhansa.destroy();
+            if(myChartExp) myChartExp.destroy();
+            if(myChartComp) myChartComp.destroy();
+
+            const pieColors = ['#3b82f6', '#facc15', '#ec4899', '#10b981', '#8b5cf6'];
+
+            const ctxPhansa = document.getElementById('phansaChart').getContext('2d');
+            myChartPhansa = new Chart(ctxPhansa, { type: 'pie', data: { labels: Object.keys(compPhansa), datasets: [{ data: Object.values(compPhansa), backgroundColor: pieColors }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {font: {size: 10}} } } } });
+
+            const ctxExp = document.getElementById('expChart').getContext('2d');
+            myChartExp = new Chart(ctxExp, { type: 'pie', data: { labels: Object.keys(compExp), datasets: [{ data: Object.values(compExp), backgroundColor: pieColors }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: {font: {size: 10}} } } } });
+
+            const sortedComps = Object.entries(compCompShort).sort((a,b) => b[1]-a[1]).slice(0,5);
+            const ctxComp = document.getElementById('competencyChart').getContext('2d');
+            myChartComp = new Chart(ctxComp, { type: 'bar', data: { labels: sortedComps.map(x => x[0]), datasets: [{ label: 'จำนวนผู้เลือก', data: sortedComps.map(x => x[1]), backgroundColor: '#ec4899', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { ticks: { font: {size: 11} } } }, plugins: { legend: { display: false } } } });
+        }
+
+        window.downloadSurveyReport = function() {
+            const btn = document.querySelector('button[onclick="downloadSurveyReport()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังประมวลผล...`;
+            btn.disabled = true;
+
+            const element = currentSurveyTab === 'dash' ? document.getElementById('surveyDashboard') : document.getElementById('a4SvyPaper');
+            const filename = currentSurveyTab === 'dash' ? `แดชบอร์ดสรุปแบบสำรวจ_${currentFilterYear}.png` : `รายงานอภิปรายผล_A4_${currentFilterYear}.png`;
+            
+            html2canvas(element, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast('ดาวน์โหลดรูปภาพสำเร็จ!');
+            });
+        }
+
+        window.openA4Report = function(id) {
+            const data = allReports.find(x => x.id === id);
+            if(!data) { showToast('ไม่พบข้อมูลรายงาน'); return; }
+
+            data.views = (data.views || 0) + 1;
+            renderDashboard();
+            try {
+                const params = new URLSearchParams();
+                params.append('payload', JSON.stringify({ action: 'updateStats', id: id, field: 'views' }));
+                fetch(SCRIPT_URL, { method: 'POST', body: params, headers: { 'Content-Type': 'application/x-www-form-urlencoded' }});
+            } catch(e){}
+
+            document.body.style.overflow = 'hidden'; 
+            
+            document.getElementById('a4_year').innerText = data.year || '-';
+            document.getElementById('a4_term').innerText = data.term || '-';
+            document.getElementById('a4_name').innerText = data.name || '-';
+            document.getElementById('a4_lastname').innerText = data.lastname || '';
+            document.getElementById('a4_school').innerText = data.school || '-';
+            document.getElementById('a4_subdistrict').innerText = data.subdistrict || '-';
+            document.getElementById('a4_district').innerText = data.district || '-';
+            document.getElementById('a4_province').innerText = data.province || '-';
+            document.getElementById('a4_center').innerText = data.center || '-';
+            
+            // Format date correctly to YYYY-MM-DD
+            let dateStr = data.date || '-';
+            try {
+                if (dateStr !== '-') {
+                    const d = new Date(dateStr);
+                    if (!isNaN(d.getTime())) {
+                        const yyyy = d.getFullYear();
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        dateStr = `${yyyy}-${mm}-${dd}`;
+                    }
+                }
+            } catch (e) {
+                console.error("Date parse error", e);
+            }
+            
+            document.getElementById('a4_date').innerText = dateStr;
+            document.getElementById('a4_hours').innerText = data.hours || '-';
+            document.getElementById('a4_level').innerText = data.level || '-';
+            document.getElementById('a4_students').innerText = data.students || '-';
+            document.getElementById('a4_mentor').innerText = data.mentor || '-';
+            document.getElementById('a4_director').innerText = data.director || '-';
+            document.getElementById('a4_phone').innerText = data.phone || '-';
+            
+            const profImg = document.getElementById('a4_profileImg');
+            if(data.profileImg) { profImg.src = data.profileImg; profImg.classList.remove('hidden'); }
+            else { profImg.classList.add('hidden'); }
+
+            const evData = [
+                { img: data.ev1, label: "ภาพที่ 1 นำเข้าสู่บทเรียน" },
+                { img: data.ev2, label: "ภาพที่ 2 กิจกรรมกลุ่ม" },
+                { img: data.ev3, label: "ภาพที่ 3 ลงมือปฏิบัติ" },
+                { img: data.ev4, label: "ภาพที่ 4 สรุปและสะท้อนคิด" }
+            ];
+            
+            const evGrid = document.getElementById('a4_evidenceGrid');
+            evGrid.innerHTML = evData.map(item => `
+                <div class="flex flex-col items-center">
+                    <div class="border border-gray-300 w-full flex items-center justify-center bg-gray-50 overflow-hidden rounded-sm a4-ev-box" style="height: 35mm;">
+                        ${item.img ? `<img src="${item.img}" class="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90 transition" onclick="openLightbox(this.src)">` : `<span class="text-xs text-gray-400 font-sans">ไม่มีภาพหลักฐาน</span>`}
+                    </div>
+                    <p style="font-size: 10pt;" class="mt-0.5 font-medium text-gray-800">${item.label}</p>
+                </div>
+            `).join('');
+
+            document.getElementById('a4_activity').innerText = data.activity || '-';
+            document.getElementById('a4_good').innerText = data.good || '-';
+            document.getElementById('a4_improve').innerText = data.improve || '-';
+            document.getElementById('a4_develop').innerText = data.develop || '-';
+            document.getElementById('a4_impact').innerText = data.impact || '-';
+            
+            // ใช้เฉพาะชื่อผู้รายงานเท่านั้น (ไม่แสดงนามสกุล)
+            document.getElementById('a4_sign_name').innerText = data.name || '-';
+            document.getElementById('a4_sign_mentor').innerText = data.mentor || '—';
+
+            document.getElementById('a4ReportModal').classList.remove('hidden');
+            document.getElementById('a4ReportModal').classList.add('flex');
+            
+            currentA4Scale = 1.0;
+            updateA4Zoom();
+            document.body.style.overflow = 'hidden'; 
+            document.getElementById('a4ReportModal').scrollTo(0,0);
+
+            setTimeout(async () => {
+                const paper = document.getElementById('a4Paper');
+                const images = Array.from(paper.querySelectorAll('img')).filter(img => !img.classList.contains('hidden') && img.src);
+                await Promise.all(images.map(img => new Promise(res => {
+                    if (img.complete) res();
+                    else { img.onload = res; img.onerror = res; }
+                })));
+            }, 100);
+        }
+
+        window.closeA4Report = function() {
+            document.getElementById('a4ReportModal').classList.add('hidden');
+            document.getElementById('a4ReportModal').classList.remove('flex');
+            document.body.style.overflow = 'auto';
+        }
+
+        window.downloadA4Image = function() {
+            const btn = document.querySelector('button[onclick="downloadA4Image()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังประมวลผล...`;
+            btn.disabled = true;
+
+            const paper = document.getElementById('a4Paper');
+            
+            const previousScale = paper.style.transform;
+            const previousMargin = paper.style.marginBottom;
+            paper.style.transform = 'none';
+            paper.style.marginBottom = '0px';
+
+            html2canvas(paper, { 
+                scale: 2, 
+                useCORS: true, 
+                logging: false, 
+                backgroundColor: '#ffffff',
+                width: paper.offsetWidth, 
+                height: paper.scrollHeight 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `รายงานการสอน_${document.getElementById('a4_name').innerText}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                paper.style.transform = previousScale;
+                paper.style.marginBottom = previousMargin;
+
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast('ดาวน์โหลดรูปภาพสำเร็จ!');
+            }).catch(err => {
+                console.error(err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast('เกิดข้อผิดพลาดในการดาวน์โหลดภาพ');
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
